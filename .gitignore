@@ -1,1 +1,14 @@
+# macOS
 .DS_Store
+
+# Editor / tooling
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs and temp
+*.log
+tmp/
+
+parameters.json
