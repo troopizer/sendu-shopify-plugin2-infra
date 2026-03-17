@@ -4,6 +4,8 @@
 # Editor / tooling
 .idea/
 .vscode/
+.opencode/
+.agents/
 *.swp
 *.swo
 
@@ -12,3 +14,5 @@
 tmp/
 
 parameters.json
+
+.env
