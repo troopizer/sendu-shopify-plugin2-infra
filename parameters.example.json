@@ -1,0 +1,110 @@
+[
+  {
+    "ParameterKey": "ProjectName",
+    "ParameterValue": "sendu-plugin2"
+  },
+  {
+    "ParameterKey": "EnvironmentName",
+    "ParameterValue": "staging"
+  },
+  {
+    "ParameterKey": "BackendContainerPort",
+    "ParameterValue": "3000"
+  },
+  {
+    "ParameterKey": "BackendDesiredCount",
+    "ParameterValue": "1"
+  },
+  {
+    "ParameterKey": "BackendCpu",
+    "ParameterValue": "512"
+  },
+  {
+    "ParameterKey": "BackendMemory",
+    "ParameterValue": "1024"
+  },
+  {
+    "ParameterKey": "BackendHealthCheckPath",
+    "ParameterValue": "/health"
+  },
+  {
+    "ParameterKey": "BackendImageTag",
+    "ParameterValue": "latest"
+  },
+  {
+    "ParameterKey": "BackendAppEnv",
+    "ParameterValue": "staging"
+  },
+  {
+    "ParameterKey": "DatabaseName",
+    "ParameterValue": "senduplugin2staging"
+  },
+  {
+    "ParameterKey": "DatabaseInstanceClass",
+    "ParameterValue": "db.t4g.small"
+  },
+  {
+    "ParameterKey": "DatabaseAllocatedStorage",
+    "ParameterValue": "20"
+  },
+  {
+    "ParameterKey": "DatabaseEngineVersion",
+    "ParameterValue": "16.3"
+  },
+  {
+    "ParameterKey": "DatabaseBackupRetentionDays",
+    "ParameterValue": "7"
+  },
+  {
+    "ParameterKey": "CreateArtifactBucket",
+    "ParameterValue": "false"
+  },
+  {
+    "ParameterKey": "FrontendArtifactBucketName",
+    "ParameterValue": "sendu-plugin2-artifacts-123456789012"
+  },
+  {
+    "ParameterKey": "FrontendArtifactKey",
+    "ParameterValue": "sendu/shopify-app/lambda/latest/lambda.zip"
+  },
+  {
+    "ParameterKey": "FrontendArtifactObjectVersion",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "DeployFrontendRuntime",
+    "ParameterValue": "true"
+  },
+  {
+    "ParameterKey": "UpstreamApiToken",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "ShopifyApiKey",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "FrontendLogLevel",
+    "ParameterValue": "info"
+  },
+  {
+    "ParameterKey": "LambdaMemorySize",
+    "ParameterValue": "256"
+  },
+  {
+    "ParameterKey": "LambdaTimeoutSeconds",
+    "ParameterValue": "30"
+  },
+  {
+    "ParameterKey": "ClientVpnServerCertificateArn",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "ClientVpnClientRootCertificateChainArn",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "ClientVpnClientCidr",
+    "ParameterValue": "10.250.0.0/22"
+  }
+]
