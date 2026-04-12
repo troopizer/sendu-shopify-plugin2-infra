@@ -201,21 +201,6 @@ Resources:
       SubnetId: !Ref PublicSubnet2
       RouteTableId: !Ref PublicRouteTable
 
-  NatEip:
-    Type: AWS::EC2::EIP
-    Properties:
-      Domain: vpc
-
-  NatGateway:
-    Type: AWS::EC2::NatGateway
-    DependsOn: VpcGatewayAttachment
-    Properties:
-      AllocationId: !GetAtt NatEip.AllocationId
-      SubnetId: !Ref PublicSubnet1
-      Tags:
-        - Key: Name
-          Value: !Sub ${ProjectName}-${EnvironmentName}-nat
-
   PrivateAppRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
@@ -223,13 +208,6 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub ${ProjectName}-${EnvironmentName}-private-app-rt
-
-  PrivateAppDefaultRoute:
-    Type: AWS::EC2::Route
-    Properties:
-      RouteTableId: !Ref PrivateAppRouteTable
-      DestinationCidrBlock: 0.0.0.0/0
-      NatGatewayId: !Ref NatGateway
 
   PrivateAppSubnet1RouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
@@ -250,13 +228,6 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub ${ProjectName}-${EnvironmentName}-private-db-rt
-
-  PrivateDbDefaultRoute:
-    Type: AWS::EC2::Route
-    Properties:
-      RouteTableId: !Ref PrivateDbRouteTable
-      DestinationCidrBlock: 0.0.0.0/0
-      NatGatewayId: !Ref NatGateway
 
   PrivateDbSubnet1RouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
@@ -481,12 +452,12 @@ Resources:
       TaskDefinition: !Ref BackendTaskDefinition
       NetworkConfiguration:
         AwsvpcConfiguration:
-          AssignPublicIp: DISABLED
+          AssignPublicIp: ENABLED
           SecurityGroups:
             - !Ref BackendServiceSecurityGroup
           Subnets:
-            - !Ref PrivateAppSubnet1
-            - !Ref PrivateAppSubnet2
+            - !Ref PublicSubnet1
+            - !Ref PublicSubnet2
       LoadBalancers:
         - ContainerName: backend
           ContainerPort: !Ref BackendContainerPort
