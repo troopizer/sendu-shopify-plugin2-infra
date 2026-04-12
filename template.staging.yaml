@@ -30,7 +30,7 @@ Parameters:
     Default: 1024
   BackendHealthCheckPath:
     Type: String
-    Default: /health
+    Default: /up
   BackendImageTag:
     Type: String
     Default: latest

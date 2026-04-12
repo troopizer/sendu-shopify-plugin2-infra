@@ -13,7 +13,7 @@
   },
   {
     "ParameterKey": "BackendDesiredCount",
-    "ParameterValue": "1"
+    "ParameterValue": "0"
   },
   {
     "ParameterKey": "BackendCpu",
@@ -25,7 +25,7 @@
   },
   {
     "ParameterKey": "BackendHealthCheckPath",
-    "ParameterValue": "/health"
+    "ParameterValue": "/up"
   },
   {
     "ParameterKey": "BackendImageTag",
