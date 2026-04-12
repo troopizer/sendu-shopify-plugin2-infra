@@ -56,6 +56,10 @@
     "ParameterValue": "latest"
   },
   {
+    "ParameterKey": "EnableFrontendRuntime",
+    "ParameterValue": "false"
+  },
+  {
     "ParameterKey": "UpstreamApiTokenSecretId",
     "ParameterValue": "sendu/staging/upstream-api-token"
   },

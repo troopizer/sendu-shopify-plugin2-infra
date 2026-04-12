@@ -125,7 +125,15 @@ Backend ECS env vars are intentionally split by source:
 
 The frontend ECR repository is created by this stack, and the Lambda image must exist in ECR before stack creation/update that includes the Lambda function.
 
-For first-time bootstrap, push the frontend image tag referenced by `FrontendImageTag` before running `aws cloudformation deploy`.
+Use `EnableFrontendRuntime=false` for first-time bootstrap to create infra and ECR without creating the frontend Lambda/API resources.
+
+Bootstrap flow:
+
+1. Deploy with `EnableFrontendRuntime=false`.
+2. Build and push frontend image tag to the `FrontendEcrRepository`.
+3. Re-deploy with `EnableFrontendRuntime=true FrontendImageTag=<tag>`.
+
+Important: setting `EnableFrontendRuntime=false` on an existing stack will remove frontend runtime resources managed by that condition.
 
 ## Deploy From Any Machine
 
@@ -157,8 +165,27 @@ Example (after image push):
 aws cloudformation deploy \
   --stack-name sendu-plugin2-staging \
   --template-file template.staging.yaml \
-  --parameter-overrides file://parameters.staging.json FrontendImageTag=v2026.04.12 \
+  --parameter-overrides file://parameters.staging.json EnableFrontendRuntime=true FrontendImageTag=v2026.04.12 \
   --capabilities CAPABILITY_NAMED_IAM
+```
+
+Example bootstrap deploy (first run, before frontend image exists):
+
+```bash
+aws cloudformation deploy \
+  --stack-name sendu-plugin2-staging \
+  --template-file template.staging.yaml \
+  --parameter-overrides file://parameters.staging.json EnableFrontendRuntime=false \
+  --capabilities CAPABILITY_NAMED_IAM
+```
+
+Example image tag validation before enabling frontend runtime:
+
+```bash
+aws ecr describe-images \
+  --repository-name sendu-plugin2-staging-frontend \
+  --image-ids imageTag=v2026.04.12 \
+  --profile "$AWS_PROFILE" --region "$AWS_REGION" >/dev/null
 ```
 
 Example validation + deploy (local or CI):

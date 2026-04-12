@@ -59,6 +59,14 @@ Parameters:
     Description: Tag of the frontend Lambda image in frontend ECR repository
     Default: latest
 
+  EnableFrontendRuntime:
+    Type: String
+    Description: Set to false for bootstrap deploy before frontend image exists in ECR
+    Default: "true"
+    AllowedValues:
+      - "true"
+      - "false"
+
   UpstreamApiTokenSecretId:
     Type: String
     Description: Secrets Manager secret name or ARN containing UPSTREAM_API_TOKEN
@@ -82,6 +90,9 @@ Parameters:
   LambdaTimeoutSeconds:
     Type: Number
     Default: 30
+
+Conditions:
+  CreateFrontendRuntime: !Equals [!Ref EnableFrontendRuntime, "true"]
 
 Resources:
   Vpc:
@@ -508,6 +519,7 @@ Resources:
 
   FrontendLambdaExecutionRole:
     Type: AWS::IAM::Role
+    Condition: CreateFrontendRuntime
     Properties:
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
@@ -521,29 +533,40 @@ Resources:
 
   FrontendLambdaLogGroup:
     Type: AWS::Logs::LogGroup
+    Condition: CreateFrontendRuntime
     Properties:
       LogGroupName: !Sub /aws/lambda/${ProjectName}-${EnvironmentName}-front
       RetentionInDays: 14
 
   FrontendLambdaFunction:
     Type: AWS::Lambda::Function
+    Condition: CreateFrontendRuntime
     Properties:
       FunctionName: !Sub ${ProjectName}-${EnvironmentName}-front
       PackageType: Image
       Timeout: !Ref LambdaTimeoutSeconds
       MemorySize: !Ref LambdaMemorySize
       Role: !GetAtt FrontendLambdaExecutionRole.Arn
+      Environment:
+        Variables:
+          UPSTREAM_API_BASE_URL: !Sub http://${BackendLoadBalancer.DNSName}/api
+          UPSTREAM_API_TOKEN: !Sub "{{resolve:secretsmanager:${UpstreamApiTokenSecretId}:SecretString}}"
+          SHOPIFY_API_KEY: !Sub "{{resolve:secretsmanager:${ShopifyApiKeySecretId}:SecretString}}"
+          VITE_SHOPIFY_API_KEY: !Sub "{{resolve:secretsmanager:${ShopifyApiKeySecretId}:SecretString}}"
+          LOG_LEVEL: !Ref FrontendLogLevel
       Code:
         ImageUri: !Sub ${FrontendEcrRepository.RepositoryUri}:${FrontendImageTag}
 
   FrontendHttpApi:
     Type: AWS::ApiGatewayV2::Api
+    Condition: CreateFrontendRuntime
     Properties:
       Name: !Sub ${ProjectName}-${EnvironmentName}-front-http-api
       ProtocolType: HTTP
 
   FrontendHttpApiIntegration:
     Type: AWS::ApiGatewayV2::Integration
+    Condition: CreateFrontendRuntime
     Properties:
       ApiId: !Ref FrontendHttpApi
       IntegrationType: AWS_PROXY
@@ -553,6 +576,7 @@ Resources:
 
   FrontendHttpApiProxyRoute:
     Type: AWS::ApiGatewayV2::Route
+    Condition: CreateFrontendRuntime
     Properties:
       ApiId: !Ref FrontendHttpApi
       RouteKey: ANY /{proxy+}
@@ -560,6 +584,7 @@ Resources:
 
   FrontendHttpApiRootRoute:
     Type: AWS::ApiGatewayV2::Route
+    Condition: CreateFrontendRuntime
     Properties:
       ApiId: !Ref FrontendHttpApi
       RouteKey: ANY /
@@ -567,6 +592,7 @@ Resources:
 
   FrontendHttpApiStage:
     Type: AWS::ApiGatewayV2::Stage
+    Condition: CreateFrontendRuntime
     Properties:
       ApiId: !Ref FrontendHttpApi
       StageName: $default
@@ -574,6 +600,7 @@ Resources:
 
   FrontendLambdaInvokePermission:
     Type: AWS::Lambda::Permission
+    Condition: CreateFrontendRuntime
     Properties:
       FunctionName: !Ref FrontendLambdaFunction
       Action: lambda:InvokeFunction
@@ -614,9 +641,11 @@ Outputs:
     Value: !Ref DatabaseCredentialsSecret
 
   FrontendApiUrl:
+    Condition: CreateFrontendRuntime
     Description: API Gateway endpoint used by the frontend runtime
     Value: !GetAtt FrontendHttpApi.ApiEndpoint
 
   FrontendApiBaseUrl:
+    Condition: CreateFrontendRuntime
     Description: API base URL for VITE_API_BASE_URL
     Value: !Sub ${FrontendHttpApi.ApiEndpoint}/api
