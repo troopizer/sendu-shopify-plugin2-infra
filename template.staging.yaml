@@ -14,8 +14,8 @@ Parameters:
     Default: 3000
   BackendDesiredCount:
     Type: Number
-    Default: 1
-    MinValue: 1
+    Default: 0
+    MinValue: 0
   BackendCpu:
     Type: Number
     Default: 512
