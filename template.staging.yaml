@@ -1,35 +1,14 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: Sendu staging stack (VPC, ECS, ALB, RDS, Lambda, API Gateway, S3)
+Description: Sendu staging stack (VPC, ECS, ALB, RDS, Lambda, API Gateway, ECR)
 
 Parameters:
   ProjectName:
     Type: String
-    Default: sendu-plugin
+    Default: sendu-plugin2
   EnvironmentName:
     Type: String
     Default: staging
 
-  VpcCidr:
-    Type: String
-    Default: 10.30.0.0/16
-  PublicSubnet1Cidr:
-    Type: String
-    Default: 10.30.0.0/24
-  PublicSubnet2Cidr:
-    Type: String
-    Default: 10.30.1.0/24
-  PrivateAppSubnet1Cidr:
-    Type: String
-    Default: 10.30.10.0/24
-  PrivateAppSubnet2Cidr:
-    Type: String
-    Default: 10.30.11.0/24
-  PrivateDbSubnet1Cidr:
-    Type: String
-    Default: 10.30.20.0/24
-  PrivateDbSubnet2Cidr:
-    Type: String
-    Default: 10.30.21.0/24
   BackendContainerPort:
     Type: Number
     Default: 3000
@@ -39,7 +18,7 @@ Parameters:
     MinValue: 1
   BackendCpu:
     Type: Number
-    Default: 256
+    Default: 512
     AllowedValues:
       - 256
       - 512
@@ -48,20 +27,17 @@ Parameters:
       - 4096
   BackendMemory:
     Type: Number
-    Default: 512
+    Default: 1024
   BackendHealthCheckPath:
     Type: String
-    Default: /up
+    Default: /health
   BackendImageTag:
     Type: String
     Default: latest
-  BackendAppEnv:
-    Type: String
-    Default: staging
 
   DatabaseName:
     Type: String
-    Default: senduplugin
+    Default: senduplugin2
   DatabaseInstanceClass:
     Type: String
     Default: db.t4g.small
@@ -71,44 +47,26 @@ Parameters:
     MinValue: 20
   DatabaseEngineVersion:
     Type: String
-    Default: "17.9"
+    Default: "16.3"
   DatabaseBackupRetentionDays:
     Type: Number
     Default: 7
     MinValue: 1
     MaxValue: 35
 
-  CreateArtifactBucket:
+  FrontendImageTag:
     Type: String
-    Default: "true"
-    AllowedValues:
-      - "true"
-      - "false"
-  FrontendArtifactBucketName:
-    Type: String
-    Description: Existing or to-be-created S3 bucket for frontend Lambda artifacts
-    Default: shopify-plugin
-  FrontendArtifactKey:
-    Type: String
-    Default: artifacts/lambda/frontend/latest/lambda.zip
-  FrontendArtifactObjectVersion:
-    Type: String
-    Default: ""
-  DeployFrontendRuntime:
-    Type: String
-    Default: "true"
-    AllowedValues:
-      - "true"
-      - "false"
+    Description: Tag of the frontend Lambda image in frontend ECR repository
+    Default: latest
 
-  UpstreamApiToken:
+  UpstreamApiTokenSecretId:
     Type: String
-    NoEcho: true
-    Default: ""
-  ShopifyApiKey:
+    Description: Secrets Manager secret name or ARN containing UPSTREAM_API_TOKEN
+    Default: sendu/staging/upstream-api-token
+  ShopifyApiKeySecretId:
     Type: String
-    NoEcho: true
-    Default: ""
+    Description: Secrets Manager secret name or ARN containing SHOPIFY_API_KEY
+    Default: sendu/staging/shopify-api-key
   FrontendLogLevel:
     Type: String
     Default: info
@@ -125,17 +83,11 @@ Parameters:
     Type: Number
     Default: 30
 
-Conditions:
-  ShouldCreateArtifactBucket: !Equals [!Ref CreateArtifactBucket, "true"]
-  ShouldDeployFrontendRuntime: !Equals [!Ref DeployFrontendRuntime, "true"]
-  HasFrontendArtifactObjectVersion:
-    !Not [!Equals [!Ref FrontendArtifactObjectVersion, ""]]
-
 Resources:
   Vpc:
     Type: AWS::EC2::VPC
     Properties:
-      CidrBlock: !Ref VpcCidr
+      CidrBlock: 10.30.0.0/16
       EnableDnsHostnames: true
       EnableDnsSupport: true
       Tags:
@@ -159,7 +111,7 @@ Resources:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref Vpc
-      CidrBlock: !Ref PublicSubnet1Cidr
+      CidrBlock: 10.30.0.0/24
       AvailabilityZone: !Select [0, !GetAZs ""]
       MapPublicIpOnLaunch: true
       Tags:
@@ -170,7 +122,7 @@ Resources:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref Vpc
-      CidrBlock: !Ref PublicSubnet2Cidr
+      CidrBlock: 10.30.1.0/24
       AvailabilityZone: !Select [1, !GetAZs ""]
       MapPublicIpOnLaunch: true
       Tags:
@@ -181,7 +133,7 @@ Resources:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref Vpc
-      CidrBlock: !Ref PrivateAppSubnet1Cidr
+      CidrBlock: 10.30.10.0/24
       AvailabilityZone: !Select [0, !GetAZs ""]
       MapPublicIpOnLaunch: false
       Tags:
@@ -192,7 +144,7 @@ Resources:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref Vpc
-      CidrBlock: !Ref PrivateAppSubnet2Cidr
+      CidrBlock: 10.30.11.0/24
       AvailabilityZone: !Select [1, !GetAZs ""]
       MapPublicIpOnLaunch: false
       Tags:
@@ -203,7 +155,7 @@ Resources:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref Vpc
-      CidrBlock: !Ref PrivateDbSubnet1Cidr
+      CidrBlock: 10.30.20.0/24
       AvailabilityZone: !Select [0, !GetAZs ""]
       MapPublicIpOnLaunch: false
       Tags:
@@ -214,7 +166,7 @@ Resources:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref Vpc
-      CidrBlock: !Ref PrivateDbSubnet2Cidr
+      CidrBlock: 10.30.21.0/24
       AvailabilityZone: !Select [1, !GetAZs ""]
       MapPublicIpOnLaunch: false
       Tags:
@@ -377,6 +329,27 @@ Resources:
         ScanOnPush: true
       ImageTagMutability: MUTABLE
 
+  FrontendEcrRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Sub ${ProjectName}-${EnvironmentName}-frontend
+      ImageScanningConfiguration:
+        ScanOnPush: true
+      ImageTagMutability: MUTABLE
+      RepositoryPolicyText:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowLambdaImagePull
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action:
+              - ecr:BatchGetImage
+              - ecr:GetDownloadUrlForLayer
+            Condition:
+              StringLike:
+                aws:sourceArn: !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${ProjectName}-${EnvironmentName}-front
+
   EcsCluster:
     Type: AWS::ECS::Cluster
     Properties:
@@ -440,18 +413,18 @@ Resources:
               Protocol: tcp
           Environment:
             - Name: RAILS_ENV
-              Value: !Ref BackendAppEnv
+              Value: !Ref EnvironmentName
             - Name: PORT
               Value: !Sub "${BackendContainerPort}"
             - Name: DB_HOST
               Value: !GetAtt Database.Endpoint.Address
-            - Name: DB_PORT
-              Value: "5432"
             - Name: DB_NAME
               Value: !Ref DatabaseName
-            - Name: DB_USER
-              Value: !Sub "{{resolve:secretsmanager:${DatabaseCredentialsSecret}:SecretString:username}}"
           Secrets:
+            - Name: DB_PORT
+              ValueFrom: !Sub "${DatabaseCredentialsSecret}:port::"
+            - Name: DB_USER
+              ValueFrom: !Sub "${DatabaseCredentialsSecret}:username::"
             - Name: DB_PASSWORD
               ValueFrom: !Sub "${DatabaseCredentialsSecret}:password::"
           LogConfiguration:
@@ -534,7 +507,7 @@ Resources:
       Name: !Sub ${ProjectName}/${EnvironmentName}/rds/master-credentials
       Description: Master credentials for staging PostgreSQL
       GenerateSecretString:
-        SecretStringTemplate: '{"username":"sendu_admin"}'
+        SecretStringTemplate: '{"username":"sendu_admin","port":"5432"}'
         GenerateStringKey: password
         ExcludePunctuation: true
         PasswordLength: 24
@@ -562,25 +535,7 @@ Resources:
       DBSubnetGroupName: !Ref DatabaseSubnetGroup
       DeletionProtection: false
 
-  FrontendArtifactBucket:
-    Condition: ShouldCreateArtifactBucket
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName: !Ref FrontendArtifactBucketName
-      VersioningConfiguration:
-        Status: Enabled
-      PublicAccessBlockConfiguration:
-        BlockPublicAcls: true
-        BlockPublicPolicy: true
-        IgnorePublicAcls: true
-        RestrictPublicBuckets: true
-      BucketEncryption:
-        ServerSideEncryptionConfiguration:
-          - ServerSideEncryptionByDefault:
-              SSEAlgorithm: AES256
-
   FrontendLambdaExecutionRole:
-    Condition: ShouldDeployFrontendRuntime
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -594,46 +549,36 @@ Resources:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
 
   FrontendLambdaLogGroup:
-    Condition: ShouldDeployFrontendRuntime
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub /aws/lambda/${ProjectName}-${EnvironmentName}-front
       RetentionInDays: 14
 
   FrontendLambdaFunction:
-    Condition: ShouldDeployFrontendRuntime
     Type: AWS::Lambda::Function
     Properties:
       FunctionName: !Sub ${ProjectName}-${EnvironmentName}-front
-      Runtime: nodejs20.x
-      Handler: index.handler
+      PackageType: Image
       Timeout: !Ref LambdaTimeoutSeconds
       MemorySize: !Ref LambdaMemorySize
       Role: !GetAtt FrontendLambdaExecutionRole.Arn
       Environment:
         Variables:
           UPSTREAM_API_BASE_URL: !Sub http://${BackendLoadBalancer.DNSName}/api
-          UPSTREAM_API_TOKEN: !Ref UpstreamApiToken
-          SHOPIFY_API_KEY: !Ref ShopifyApiKey
-          VITE_SHOPIFY_API_KEY: !Ref ShopifyApiKey
+          UPSTREAM_API_TOKEN: !Sub "{{resolve:secretsmanager:${UpstreamApiTokenSecretId}:SecretString}}"
+          SHOPIFY_API_KEY: !Sub "{{resolve:secretsmanager:${ShopifyApiKeySecretId}:SecretString}}"
+          VITE_SHOPIFY_API_KEY: !Sub "{{resolve:secretsmanager:${ShopifyApiKeySecretId}:SecretString}}"
           LOG_LEVEL: !Ref FrontendLogLevel
       Code:
-        S3Bucket: !Ref FrontendArtifactBucketName
-        S3Key: !Ref FrontendArtifactKey
-        S3ObjectVersion: !If
-          - HasFrontendArtifactObjectVersion
-          - !Ref FrontendArtifactObjectVersion
-          - !Ref AWS::NoValue
+        ImageUri: !Sub ${FrontendEcrRepository.RepositoryUri}:${FrontendImageTag}
 
   FrontendHttpApi:
-    Condition: ShouldDeployFrontendRuntime
     Type: AWS::ApiGatewayV2::Api
     Properties:
       Name: !Sub ${ProjectName}-${EnvironmentName}-front-http-api
       ProtocolType: HTTP
 
   FrontendHttpApiIntegration:
-    Condition: ShouldDeployFrontendRuntime
     Type: AWS::ApiGatewayV2::Integration
     Properties:
       ApiId: !Ref FrontendHttpApi
@@ -643,7 +588,6 @@ Resources:
       PayloadFormatVersion: "2.0"
 
   FrontendHttpApiProxyRoute:
-    Condition: ShouldDeployFrontendRuntime
     Type: AWS::ApiGatewayV2::Route
     Properties:
       ApiId: !Ref FrontendHttpApi
@@ -651,7 +595,6 @@ Resources:
       Target: !Sub integrations/${FrontendHttpApiIntegration}
 
   FrontendHttpApiRootRoute:
-    Condition: ShouldDeployFrontendRuntime
     Type: AWS::ApiGatewayV2::Route
     Properties:
       ApiId: !Ref FrontendHttpApi
@@ -659,7 +602,6 @@ Resources:
       Target: !Sub integrations/${FrontendHttpApiIntegration}
 
   FrontendHttpApiStage:
-    Condition: ShouldDeployFrontendRuntime
     Type: AWS::ApiGatewayV2::Stage
     Properties:
       ApiId: !Ref FrontendHttpApi
@@ -667,7 +609,6 @@ Resources:
       AutoDeploy: true
 
   FrontendLambdaInvokePermission:
-    Condition: ShouldDeployFrontendRuntime
     Type: AWS::Lambda::Permission
     Properties:
       FunctionName: !Ref FrontendLambdaFunction
@@ -683,6 +624,10 @@ Outputs:
   BackendEcrRepositoryUri:
     Description: ECR repository URI for backend image pushes
     Value: !GetAtt BackendEcrRepository.RepositoryUri
+
+  FrontendEcrRepositoryUri:
+    Description: ECR repository URI for frontend Lambda image pushes
+    Value: !GetAtt FrontendEcrRepository.RepositoryUri
 
   BackendAlbDnsName:
     Description: Public DNS name of backend ALB
@@ -704,16 +649,10 @@ Outputs:
     Description: Secrets Manager ARN containing database credentials
     Value: !Ref DatabaseCredentialsSecret
 
-  FrontendArtifactBucketNameOutput:
-    Description: Frontend artifact S3 bucket
-    Value: !Ref FrontendArtifactBucketName
-
   FrontendApiUrl:
-    Condition: ShouldDeployFrontendRuntime
     Description: API Gateway endpoint used by the frontend runtime
     Value: !GetAtt FrontendHttpApi.ApiEndpoint
 
   FrontendApiBaseUrl:
-    Condition: ShouldDeployFrontendRuntime
     Description: API base URL for VITE_API_BASE_URL
     Value: !Sub ${FrontendHttpApi.ApiEndpoint}/api
