@@ -47,7 +47,7 @@ Parameters:
     MinValue: 20
   DatabaseEngineVersion:
     Type: String
-    Default: "16.3"
+    Default: "17"
   DatabaseBackupRetentionDays:
     Type: Number
     Default: 7
@@ -533,13 +533,6 @@ Resources:
       Timeout: !Ref LambdaTimeoutSeconds
       MemorySize: !Ref LambdaMemorySize
       Role: !GetAtt FrontendLambdaExecutionRole.Arn
-      Environment:
-        Variables:
-          UPSTREAM_API_BASE_URL: !Sub http://${BackendLoadBalancer.DNSName}/api
-          UPSTREAM_API_TOKEN: !Sub "{{resolve:secretsmanager:${UpstreamApiTokenSecretId}:SecretString}}"
-          SHOPIFY_API_KEY: !Sub "{{resolve:secretsmanager:${ShopifyApiKeySecretId}:SecretString}}"
-          VITE_SHOPIFY_API_KEY: !Sub "{{resolve:secretsmanager:${ShopifyApiKeySecretId}:SecretString}}"
-          LOG_LEVEL: !Ref FrontendLogLevel
       Code:
         ImageUri: !Sub ${FrontendEcrRepository.RepositoryUri}:${FrontendImageTag}
 

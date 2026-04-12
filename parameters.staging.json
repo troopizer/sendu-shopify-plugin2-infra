@@ -45,7 +45,7 @@
   },
   {
     "ParameterKey": "DatabaseEngineVersion",
-    "ParameterValue": "16.3"
+    "ParameterValue": "17"
   },
   {
     "ParameterKey": "DatabaseBackupRetentionDays",
