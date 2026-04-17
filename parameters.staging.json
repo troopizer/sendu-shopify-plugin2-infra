@@ -13,7 +13,7 @@
   },
   {
     "ParameterKey": "BackendDesiredCount",
-    "ParameterValue": "0"
+    "ParameterValue": "1"
   },
   {
     "ParameterKey": "BackendCpu",
@@ -53,11 +53,11 @@
   },
   {
     "ParameterKey": "FrontendImageTag",
-    "ParameterValue": "latest"
+    "ParameterValue": "1.0.14"
   },
   {
     "ParameterKey": "EnableFrontendRuntime",
-    "ParameterValue": "false"
+    "ParameterValue": "true"
   },
   {
     "ParameterKey": "UpstreamApiTokenSecretId",

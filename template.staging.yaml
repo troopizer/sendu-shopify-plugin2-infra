@@ -14,7 +14,7 @@ Parameters:
     Default: 3000
   BackendDesiredCount:
     Type: Number
-    Default: 0
+    Default: 1
     MinValue: 0
   BackendCpu:
     Type: Number
@@ -369,6 +369,8 @@ Resources:
             Principal:
               Service: ecs-tasks.amazonaws.com
             Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
 
   BackendLogGroup:
     Type: AWS::Logs::LogGroup
@@ -402,13 +404,19 @@ Resources:
               Value: !GetAtt Database.Endpoint.Address
             - Name: DB_NAME
               Value: !Ref DatabaseName
-          Secrets:
-            - Name: DB_PORT
-              ValueFrom: !Sub "${DatabaseCredentialsSecret}:port::"
-            - Name: DB_USER
-              ValueFrom: !Sub "${DatabaseCredentialsSecret}:username::"
-            - Name: DB_PASSWORD
-              ValueFrom: !Sub "${DatabaseCredentialsSecret}:password::"
+            - Name: SHOPIFY_API_KEY
+              Value: ""
+            - Name: SHOPIFY_API_SECRET
+              Value: ""
+            - Name: SHOPIFY_API_SCOPES
+              Value: "read_orders,write_products,write_shipping,write_fulfillments,write_orders,write_script_tags,read_script_tags"
+            - Name: SHOPIFY_API_VERSION
+              Value: "2026-04"
+            - Name: RAILS_MASTER_KEY
+              Value: c9ecfa59b205e14d0dc95bcaac958e3c
+            - Name: DATABASE_URL
+              Value: "postgres://sendu_admin:aFFi9ya7fBSgb90i1ExESjAy@sendu-plugin2-staging-postgres.cavtim7gt7g0.sa-east-1.rds.amazonaws.com:5432/senduplugin2"
+
           LogConfiguration:
             LogDriver: awslogs
             Options:
@@ -549,11 +557,13 @@ Resources:
       Role: !GetAtt FrontendLambdaExecutionRole.Arn
       Environment:
         Variables:
+          VERSION: "v3"
           UPSTREAM_API_BASE_URL: !Sub http://${BackendLoadBalancer.DNSName}/api
-          UPSTREAM_API_TOKEN: !Sub "{{resolve:secretsmanager:${UpstreamApiTokenSecretId}:SecretString}}"
-          SHOPIFY_API_KEY: !Sub "{{resolve:secretsmanager:${ShopifyApiKeySecretId}:SecretString}}"
-          VITE_SHOPIFY_API_KEY: !Sub "{{resolve:secretsmanager:${ShopifyApiKeySecretId}:SecretString}}"
+          UPSTREAM_API_TOKEN: "cadena"
+          SHOPIFY_API_KEY: f06676c60bb91a2506151f9b8246a537
+          VITE_SHOPIFY_API_KEY: f06676c60bb91a2506151f9b8246a537
           LOG_LEVEL: !Ref FrontendLogLevel
+          VITE_API_BASE_URL: !Sub ${FrontendHttpApi.ApiEndpoint}/api
       Code:
         ImageUri: !Sub ${FrontendEcrRepository.RepositoryUri}:${FrontendImageTag}
 
@@ -563,6 +573,20 @@ Resources:
     Properties:
       Name: !Sub ${ProjectName}-${EnvironmentName}-front-http-api
       ProtocolType: HTTP
+      CorsConfiguration:
+        AllowOrigins:
+          - https://admin.shopify.com
+        AllowMethods:
+          - GET
+          - POST
+          - PUT
+          - PATCH
+          - DELETE
+          - OPTIONS
+        AllowHeaders:
+          - Content-Type
+          - Authorization
+        AllowCredentials: true
 
   FrontendHttpApiIntegration:
     Type: AWS::ApiGatewayV2::Integration
