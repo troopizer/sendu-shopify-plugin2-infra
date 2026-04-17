@@ -93,16 +93,17 @@ Parameter handling is split by responsibility:
   - naming (`ProjectName`, `EnvironmentName`)
   - capacity and tuning (`BackendCpu`, `BackendMemory`, `DatabaseInstanceClass`, etc.)
 - Secrets Manager references (committed, non-secret):
-  - `UpstreamApiTokenSecretId`
-  - `ShopifyApiKeySecretId`
+  - `AppSecretsSecretId`
 - Release-time deployment inputs (pipeline/local override):
   - `BackendImageTag`
   - `FrontendImageTag`
 
-The template resolves frontend app secrets with dynamic references:
+The template resolves shared app secrets with dynamic references:
 
-- `{{resolve:secretsmanager:${UpstreamApiTokenSecretId}:SecretString}}`
-- `{{resolve:secretsmanager:${ShopifyApiKeySecretId}:SecretString}}`
+- `{{resolve:secretsmanager:${AppSecretsSecretId}:SecretString:UPSTREAM_API_TOKEN}}`
+- `{{resolve:secretsmanager:${AppSecretsSecretId}:SecretString:SHOPIFY_API_KEY}}`
+- `{{resolve:secretsmanager:${AppSecretsSecretId}:SecretString:SHOPIFY_API_SECRET}}`
+- `{{resolve:secretsmanager:${AppSecretsSecretId}:SecretString:RAILS_MASTER_KEY}}`
 
 This keeps plaintext secrets out of committed parameter files.
 
@@ -116,10 +117,9 @@ Backend ECS env vars are intentionally split by source:
   - `DB_NAME` -> `DatabaseName`
 - From AWS resources (derived):
   - `DB_HOST` -> `Database.Endpoint.Address`
-- From Secrets Manager (`DatabaseCredentialsSecret`):
-  - `DB_PORT` -> `port`
-  - `DB_USER` -> `username`
-  - `DB_PASSWORD` -> `password`
+- From Secrets Manager (composed into `DATABASE_URL`):
+  - `username` and `password` -> `DatabaseCredentialsSecret`
+  - App-level secrets -> `AppSecretsSecretId`
 
 ## Bootstrap Notes
 
@@ -195,11 +195,7 @@ AWS_PROFILE=staging
 AWS_REGION=eu-west-1
 
 aws secretsmanager describe-secret \
-  --secret-id sendu/staging/upstream-api-token \
-  --profile "$AWS_PROFILE" --region "$AWS_REGION" >/dev/null
-
-aws secretsmanager describe-secret \
-  --secret-id sendu/staging/shopify-api-key \
+  --secret-id sendu/staging/app-shared \
   --profile "$AWS_PROFILE" --region "$AWS_REGION" >/dev/null
 
 aws cloudformation deploy \

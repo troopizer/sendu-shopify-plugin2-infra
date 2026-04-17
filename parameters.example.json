@@ -25,7 +25,15 @@
   },
   {
     "ParameterKey": "BackendHealthCheckPath",
-    "ParameterValue": "/health"
+    "ParameterValue": "/up"
+  },
+  {
+    "ParameterKey": "BackendShopifyApiScopes",
+    "ParameterValue": "read_orders,write_products,write_shipping,write_fulfillments,write_orders,write_script_tags,read_script_tags"
+  },
+  {
+    "ParameterKey": "BackendShopifyApiVersion",
+    "ParameterValue": "2026-04"
   },
   {
     "ParameterKey": "BackendImageTag",
@@ -60,12 +68,8 @@
     "ParameterValue": "true"
   },
   {
-    "ParameterKey": "UpstreamApiTokenSecretId",
-    "ParameterValue": "sendu/staging/upstream-api-token"
-  },
-  {
-    "ParameterKey": "ShopifyApiKeySecretId",
-    "ParameterValue": "sendu/staging/shopify-api-key"
+    "ParameterKey": "AppSecretsSecretId",
+    "ParameterValue": "sendu/staging/app-shared"
   },
   {
     "ParameterKey": "FrontendLogLevel",

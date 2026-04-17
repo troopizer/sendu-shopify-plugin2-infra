@@ -18,7 +18,7 @@ Parameters:
     MinValue: 0
   BackendCpu:
     Type: Number
-    Default: 512
+    Default: 256
     AllowedValues:
       - 256
       - 512
@@ -27,10 +27,16 @@ Parameters:
       - 4096
   BackendMemory:
     Type: Number
-    Default: 1024
+    Default: 512
   BackendHealthCheckPath:
     Type: String
     Default: /up
+  BackendShopifyApiScopes:
+    Type: String
+    Default: read_orders,write_products,write_shipping,write_fulfillments,write_orders,write_script_tags,read_script_tags
+  BackendShopifyApiVersion:
+    Type: String
+    Default: "2026-04"
   BackendImageTag:
     Type: String
     Default: latest
@@ -67,14 +73,10 @@ Parameters:
       - "true"
       - "false"
 
-  UpstreamApiTokenSecretId:
+  AppSecretsSecretId:
     Type: String
-    Description: Secrets Manager secret name or ARN containing UPSTREAM_API_TOKEN
-    Default: sendu/staging/upstream-api-token
-  ShopifyApiKeySecretId:
-    Type: String
-    Description: Secrets Manager secret name or ARN containing SHOPIFY_API_KEY
-    Default: sendu/staging/shopify-api-key
+    Description: Secrets Manager secret name or ARN containing shared app secrets
+    Default: sendu/staging/app-shared
   FrontendLogLevel:
     Type: String
     Default: info
@@ -398,24 +400,18 @@ Resources:
           Environment:
             - Name: RAILS_ENV
               Value: !Ref EnvironmentName
-            - Name: PORT
-              Value: !Sub "${BackendContainerPort}"
-            - Name: DB_HOST
-              Value: !GetAtt Database.Endpoint.Address
-            - Name: DB_NAME
-              Value: !Ref DatabaseName
             - Name: SHOPIFY_API_KEY
-              Value: ""
+              Value: !Sub "{{resolve:secretsmanager:${AppSecretsSecretId}:SecretString:SHOPIFY_API_KEY}}"
             - Name: SHOPIFY_API_SECRET
-              Value: ""
+              Value: !Sub "{{resolve:secretsmanager:${AppSecretsSecretId}:SecretString:SHOPIFY_API_SECRET}}"
             - Name: SHOPIFY_API_SCOPES
-              Value: "read_orders,write_products,write_shipping,write_fulfillments,write_orders,write_script_tags,read_script_tags"
+              Value: !Ref BackendShopifyApiScopes
             - Name: SHOPIFY_API_VERSION
-              Value: "2026-04"
+              Value: !Ref BackendShopifyApiVersion
             - Name: RAILS_MASTER_KEY
-              Value: c9ecfa59b205e14d0dc95bcaac958e3c
+              Value: !Sub "{{resolve:secretsmanager:${AppSecretsSecretId}:SecretString:RAILS_MASTER_KEY}}"
             - Name: DATABASE_URL
-              Value: "postgres://sendu_admin:aFFi9ya7fBSgb90i1ExESjAy@sendu-plugin2-staging-postgres.cavtim7gt7g0.sa-east-1.rds.amazonaws.com:5432/senduplugin2"
+              Value: !Sub "postgres://{{resolve:secretsmanager:${DatabaseCredentialsSecret}:SecretString:username}}:{{resolve:secretsmanager:${DatabaseCredentialsSecret}:SecretString:password}}@${Database.Endpoint.Address}:5432/${DatabaseName}"
 
           LogConfiguration:
             LogDriver: awslogs
@@ -559,11 +555,9 @@ Resources:
         Variables:
           VERSION: "v3"
           UPSTREAM_API_BASE_URL: !Sub http://${BackendLoadBalancer.DNSName}/api
-          UPSTREAM_API_TOKEN: "cadena"
-          SHOPIFY_API_KEY: f06676c60bb91a2506151f9b8246a537
-          VITE_SHOPIFY_API_KEY: f06676c60bb91a2506151f9b8246a537
+          UPSTREAM_API_TOKEN: !Sub "{{resolve:secretsmanager:${AppSecretsSecretId}:SecretString:UPSTREAM_API_TOKEN}}"
+          SHOPIFY_API_KEY: !Sub "{{resolve:secretsmanager:${AppSecretsSecretId}:SecretString:SHOPIFY_API_KEY}}"
           LOG_LEVEL: !Ref FrontendLogLevel
-          VITE_API_BASE_URL: !Sub ${FrontendHttpApi.ApiEndpoint}/api
       Code:
         ImageUri: !Sub ${FrontendEcrRepository.RepositoryUri}:${FrontendImageTag}
 
@@ -671,5 +665,5 @@ Outputs:
 
   FrontendApiBaseUrl:
     Condition: CreateFrontendRuntime
-    Description: API base URL for VITE_API_BASE_URL
+    Description: API base URL for frontend runtime
     Value: !Sub ${FrontendHttpApi.ApiEndpoint}/api

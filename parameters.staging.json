@@ -1,82 +1,26 @@
 [
   {
-    "ParameterKey": "ProjectName",
-    "ParameterValue": "sendu-plugin2"
-  },
-  {
     "ParameterKey": "EnvironmentName",
     "ParameterValue": "staging"
-  },
-  {
-    "ParameterKey": "BackendContainerPort",
-    "ParameterValue": "3000"
-  },
-  {
-    "ParameterKey": "BackendDesiredCount",
-    "ParameterValue": "1"
-  },
-  {
-    "ParameterKey": "BackendCpu",
-    "ParameterValue": "512"
-  },
-  {
-    "ParameterKey": "BackendMemory",
-    "ParameterValue": "1024"
-  },
-  {
-    "ParameterKey": "BackendHealthCheckPath",
-    "ParameterValue": "/up"
   },
   {
     "ParameterKey": "BackendImageTag",
     "ParameterValue": "latest"
   },
   {
-    "ParameterKey": "DatabaseName",
-    "ParameterValue": "senduplugin2staging"
-  },
-  {
-    "ParameterKey": "DatabaseInstanceClass",
-    "ParameterValue": "db.t4g.small"
-  },
-  {
-    "ParameterKey": "DatabaseAllocatedStorage",
-    "ParameterValue": "20"
-  },
-  {
-    "ParameterKey": "DatabaseEngineVersion",
-    "ParameterValue": "17"
-  },
-  {
-    "ParameterKey": "DatabaseBackupRetentionDays",
-    "ParameterValue": "7"
-  },
-  {
     "ParameterKey": "FrontendImageTag",
-    "ParameterValue": "1.0.14"
+    "ParameterValue": "latest"
   },
   {
     "ParameterKey": "EnableFrontendRuntime",
     "ParameterValue": "true"
   },
   {
-    "ParameterKey": "UpstreamApiTokenSecretId",
-    "ParameterValue": "sendu/staging/upstream-api-token"
-  },
-  {
-    "ParameterKey": "ShopifyApiKeySecretId",
-    "ParameterValue": "sendu/staging/shopify-api-key"
+    "ParameterKey": "AppSecretsSecretId",
+    "ParameterValue": "sendu/staging/app-shared"
   },
   {
     "ParameterKey": "FrontendLogLevel",
-    "ParameterValue": "info"
-  },
-  {
-    "ParameterKey": "LambdaMemorySize",
-    "ParameterValue": "256"
-  },
-  {
-    "ParameterKey": "LambdaTimeoutSeconds",
-    "ParameterValue": "30"
+    "ParameterValue": "debug"
   }
 ]
