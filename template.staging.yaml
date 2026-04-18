@@ -411,7 +411,7 @@ Resources:
             - Name: RAILS_MASTER_KEY
               Value: !Sub "{{resolve:secretsmanager:${AppSecretsSecretId}:SecretString:RAILS_MASTER_KEY}}"
             - Name: DATABASE_URL
-              Value: !Sub "postgres://{{resolve:secretsmanager:${DatabaseCredentialsSecret}:SecretString:username}}:{{resolve:secretsmanager:${DatabaseCredentialsSecret}:SecretString:password}}@${Database.Endpoint.Address}:5432/${DatabaseName}"
+              Value: !Sub "postgres://{{resolve:secretsmanager:${AppSecretsSecretId}:SecretString:DB_USERNAME}}:{{resolve:secretsmanager:${AppSecretsSecretId}:SecretString:DB_PASSWORD}}@${Database.Endpoint.Address}:5432/${DatabaseName}"
 
           LogConfiguration:
             LogDriver: awslogs
