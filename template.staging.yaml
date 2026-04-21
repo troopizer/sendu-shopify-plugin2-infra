@@ -404,6 +404,10 @@ Resources:
               Value: !Sub "{{resolve:secretsmanager:${AppSecretsSecretId}:SecretString:SHOPIFY_API_KEY}}"
             - Name: SHOPIFY_API_SECRET
               Value: !Sub "{{resolve:secretsmanager:${AppSecretsSecretId}:SecretString:SHOPIFY_API_SECRET}}"
+            - Name: SHOPIFY_APP_HOST
+              Value: !Sub "{{resolve:secretsmanager:${AppSecretsSecretId}:SecretString:SHOPIFY_APP_HOST}}"
+            - Name: SHOPIFY_FRONTEND_URL
+              Value: !Sub "{{resolve:secretsmanager:${AppSecretsSecretId}:SecretString:SHOPIFY_FRONTEND_URL}}"
             - Name: SHOPIFY_API_SCOPES
               Value: !Ref BackendShopifyApiScopes
             - Name: SHOPIFY_API_VERSION
