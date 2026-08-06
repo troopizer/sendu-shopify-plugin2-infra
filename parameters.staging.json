@@ -22,5 +22,9 @@
   {
     "ParameterKey": "FrontendLogLevel",
     "ParameterValue": "debug"
+  },
+  {
+    "ParameterKey": "RoutedAppOrigin",
+    "ParameterValue": ""
   }
 ]

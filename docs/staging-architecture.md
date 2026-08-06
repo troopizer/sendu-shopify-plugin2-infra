@@ -24,7 +24,7 @@ It is implemented in `template.staging.yaml`.
 - `ALB` (internet-facing) routes to ECS service tasks
 - `RDS` is private (`PubliclyAccessible: false`) and accessible only from:
   - ECS security group
-  - Client VPN CIDR (for developer DB access)
+  - SSM bastion security group (for authorized developer DB access)
 - Frontend runtime:
   - API Gateway HTTP API -> Lambda
   - Lambda serves static web files and proxies `/api/*` to backend ALB
@@ -37,12 +37,44 @@ The staging template defines a fixed network layout (not parameterized):
 - Private app subnets: `10.30.10.0/24`, `10.30.11.0/24`
 - Private DB subnets: `10.30.20.0/24`, `10.30.21.0/24`
 
-## Developer Access to Private RDS (No Bastion)
+## Developer Access to Private RDS
 
-- Use `AWS Client VPN` (not modeled in this template yet)
-- Developers connect from home/PC through VPN
-- DB SG allows inbound 5432 from VPN client CIDR
-- RDS remains private; no public endpoint exposure
+- Use the EC2 bastion host through AWS Systems Manager Session Manager.
+- The bastion has no inbound security group rules and no SSH key pair.
+- Authorized AWS users or roles must have the `BastionAccessPolicyArn` output policy attached, plus permission to read the RDS credentials secret if they need the password.
+- DB SG allows inbound `5432` from the bastion security group.
+- RDS remains private; no public endpoint exposure.
+
+Example local port forward to the private RDS endpoint:
+
+```bash
+./scripts/db-bastion-tunnel.sh
+```
+
+The script starts the bastion when needed, waits for SSM, opens `localhost:5432`, and stops the bastion on exit or `Ctrl+C`.
+
+Optional overrides:
+
+```bash
+./scripts/db-bastion-tunnel.sh \
+  --instance-id <BastionInstanceId> \
+  --db-host <DatabaseEndpointAddress> \
+  --profile "$AWS_PROFILE" \
+  --region "$AWS_REGION"
+```
+
+Equivalent raw AWS CLI command:
+
+```bash
+aws ssm start-session \
+  --target <BastionInstanceId> \
+  --document-name AWS-StartPortForwardingSessionToRemoteHost \
+  --parameters '{"host":["<DatabaseEndpointAddress>"],"portNumber":["5432"],"localPortNumber":["5432"]}' \
+  --profile "$AWS_PROFILE" \
+  --region "$AWS_REGION"
+```
+
+Then connect locally to `localhost:5432` using the database username/password from `DatabaseCredentialsSecretArn`.
 
 ## Deployment Policy (`latest` + git tags)
 
@@ -78,6 +110,7 @@ Use `latest` as the staging channel and git tags as release identity.
 
 - Networking: VPC, public/private subnets, route tables, IGW, NAT
 - Security groups: ALB, ECS service, DB
+- Bastion: EC2 instance accessed through SSM Session Manager for private DB access
 - Backend: ECR repo, ECS cluster, task definition, service, ALB
 - Database: Secrets Manager secret, subnet group, PostgreSQL RDS instance
 - Frontend: dedicated ECR repo, Lambda (container image), API Gateway HTTP API

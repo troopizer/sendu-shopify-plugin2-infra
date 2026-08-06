@@ -60,6 +60,15 @@ Parameters:
     MinValue: 1
     MaxValue: 35
 
+  BastionInstanceType:
+    Type: String
+    Default: t3.micro
+    Description: EC2 instance type for the SSM bastion host
+  BastionAmiId:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64
+    Description: SSM parameter resolving to the Amazon Linux 2023 AMI for the bastion host
+
   FrontendImageTag:
     Type: String
     Description: Tag of the frontend Lambda image in frontend ECR repository
@@ -85,6 +94,11 @@ Parameters:
       - info
       - warn
       - error
+
+  RoutedAppOrigin:
+    Type: String
+    Description: Optional HTTPS origin for the target-shop routed app. Leave empty to disable routing.
+    Default: ""
 
   LambdaMemorySize:
     Type: Number
@@ -291,19 +305,110 @@ Resources:
   DatabaseSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: PostgreSQL access from ECS and Client VPN CIDR
+      GroupDescription: PostgreSQL access from ECS and SSM bastion
       VpcId: !Ref Vpc
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 5432
           ToPort: 5432
           SourceSecurityGroupId: !Ref BackendServiceSecurityGroup
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          SourceSecurityGroupId: !Ref BastionSecurityGroup
       SecurityGroupEgress:
         - IpProtocol: -1
           CidrIp: 0.0.0.0/0
       Tags:
         - Key: Name
           Value: !Sub ${ProjectName}-${EnvironmentName}-db-sg
+
+  BastionSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: SSM-only bastion host with no inbound network access
+      VpcId: !Ref Vpc
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-${EnvironmentName}-bastion-sg
+
+  BastionInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${ProjectName}-${EnvironmentName}-bastion-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+
+  BastionInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: !Sub ${ProjectName}-${EnvironmentName}-bastion-profile
+      Roles:
+        - !Ref BastionInstanceRole
+
+  BastionInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref BastionAmiId
+      InstanceType: !Ref BastionInstanceType
+      IamInstanceProfile: !Ref BastionInstanceProfile
+      SubnetId: !Ref PublicSubnet1
+      SecurityGroupIds:
+        - !Ref BastionSecurityGroup
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeSize: 8
+            VolumeType: gp3
+            Encrypted: true
+      MetadataOptions:
+        HttpTokens: required
+        HttpEndpoint: enabled
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-${EnvironmentName}-bastion
+        - Key: Purpose
+          Value: database-access
+
+  BastionAccessPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub ${ProjectName}-${EnvironmentName}-bastion-ssm-access
+      Description: Attach to authorized IAM users or roles that may connect to the database through the SSM bastion.
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: StartBastionSessions
+            Effect: Allow
+            Action:
+              - ssm:StartSession
+            Resource:
+              - !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/${BastionInstance}
+              - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}::document/AWS-StartPortForwardingSession
+              - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}::document/AWS-StartPortForwardingSessionToRemoteHost
+          - Sid: ManageOwnSessions
+            Effect: Allow
+            Action:
+              - ssm:TerminateSession
+              - ssm:ResumeSession
+            Resource: !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:session/${!aws:username}-*
+          - Sid: DiscoverBastion
+            Effect: Allow
+            Action:
+              - ec2:DescribeInstances
+              - ssm:DescribeInstanceInformation
+              - ssm:GetConnectionStatus
+            Resource: "*"
 
   BackendEcrRepository:
     Type: AWS::ECR::Repository
@@ -562,6 +667,7 @@ Resources:
           UPSTREAM_API_TOKEN: !Sub "{{resolve:secretsmanager:${AppSecretsSecretId}:SecretString:UPSTREAM_API_TOKEN}}"
           SHOPIFY_API_KEY: !Sub "{{resolve:secretsmanager:${AppSecretsSecretId}:SecretString:SHOPIFY_API_KEY}}"
           LOG_LEVEL: !Ref FrontendLogLevel
+          ROUTED_APP_ORIGIN: !Ref RoutedAppOrigin
       Code:
         ImageUri: !Sub ${FrontendEcrRepository.RepositoryUri}:${FrontendImageTag}
 
@@ -661,6 +767,18 @@ Outputs:
   DatabaseCredentialsSecretArn:
     Description: Secrets Manager ARN containing database credentials
     Value: !Ref DatabaseCredentialsSecret
+
+  BastionInstanceId:
+    Description: EC2 instance ID for the SSM bastion host
+    Value: !Ref BastionInstance
+
+  BastionAccessPolicyArn:
+    Description: IAM managed policy ARN to attach to authorized users or roles for bastion SSM access
+    Value: !Ref BastionAccessPolicy
+
+  BastionSecurityGroupId:
+    Description: Security group ID for the SSM bastion host
+    Value: !Ref BastionSecurityGroup
 
   FrontendApiUrl:
     Condition: CreateFrontendRuntime

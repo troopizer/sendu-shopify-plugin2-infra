@@ -60,6 +60,10 @@
     "ParameterValue": "7"
   },
   {
+    "ParameterKey": "BastionInstanceType",
+    "ParameterValue": "t3.micro"
+  },
+  {
     "ParameterKey": "FrontendImageTag",
     "ParameterValue": "latest"
   },
