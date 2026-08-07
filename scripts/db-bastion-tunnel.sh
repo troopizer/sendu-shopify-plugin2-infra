@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-STACK_NAME="sendu-plugin2-staging"
+STACK_NAME="sendu-shopify-plugin2-staging"
 INSTANCE_ID="${BASTION_INSTANCE_ID:-}"
 DB_HOST="${DB_HOST:-}"
-AWS_PROFILE_NAME="${AWS_PROFILE:-staging}"
-AWS_REGION_NAME="${AWS_REGION:-eu-west-1}"
-LOCAL_PORT="5432"
+AWS_PROFILE_NAME="${AWS_PROFILE:-sendu}"
+AWS_REGION_NAME="${AWS_REGION:-sa-east-1}"
+LOCAL_PORT="${LOCAL_PORT:-54321}"
 REMOTE_PORT="5432"
 CLEANED_UP="false"
 
@@ -20,12 +20,13 @@ The bastion is stopped automatically when the script exits or receives Ctrl+C.
 Options:
   --instance-id ID       Bastion EC2 instance ID. Default: CloudFormation BastionInstanceId output.
   --db-host HOST         RDS endpoint hostname. Default: CloudFormation DatabaseEndpointAddress output.
+  --local-port PORT      Local port for the tunnel. Default: ${LOCAL_PORT}
   --profile PROFILE      AWS profile. Default: ${AWS_PROFILE_NAME}
   --region REGION        AWS region. Default: ${AWS_REGION_NAME}
   --help                 Show this help.
 
 Environment overrides are also supported:
-  BASTION_INSTANCE_ID, DB_HOST, AWS_PROFILE, AWS_REGION
+  BASTION_INSTANCE_ID, DB_HOST, LOCAL_PORT, AWS_PROFILE, AWS_REGION
 USAGE
 }
 
@@ -37,6 +38,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --db-host)
       DB_HOST="${2:?Missing value for --db-host}"
+      shift 2
+      ;;
+    --local-port)
+      LOCAL_PORT="${2:?Missing value for --local-port}"
       shift 2
       ;;
     --profile)
@@ -63,6 +68,31 @@ aws_cli() {
   aws "$@" --profile "$AWS_PROFILE_NAME" --region "$AWS_REGION_NAME"
 }
 
+local_port_in_use() {
+  if command -v ss >/dev/null 2>&1; then
+    ss -H -ltn "sport = :${LOCAL_PORT}" | read -r _
+  elif command -v lsof >/dev/null 2>&1; then
+    lsof -nP -iTCP:"${LOCAL_PORT}" -sTCP:LISTEN >/dev/null 2>&1
+  elif command -v netstat >/dev/null 2>&1; then
+    netstat -ltn 2>/dev/null | awk '{print $4}' | grep -Eq "(^|[.:])${LOCAL_PORT}$"
+  else
+    return 1
+  fi
+}
+
+validate_local_port() {
+  if ! [[ "$LOCAL_PORT" =~ ^[0-9]+$ ]] || (( LOCAL_PORT < 1 || LOCAL_PORT > 65535 )); then
+    echo "Invalid local port: ${LOCAL_PORT}. Use a number between 1 and 65535." >&2
+    exit 1
+  fi
+
+  if local_port_in_use; then
+    echo "Local port ${LOCAL_PORT} is already in use. Choose another port with --local-port or LOCAL_PORT." >&2
+    echo "Example: LOCAL_PORT=54321 $0" >&2
+    exit 1
+  fi
+}
+
 stack_output() {
   local output_key="$1"
 
@@ -83,6 +113,8 @@ cleanup() {
 trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
+
+validate_local_port
 
 if [[ -z "$INSTANCE_ID" ]]; then
   INSTANCE_ID="$(stack_output BastionInstanceId)"
