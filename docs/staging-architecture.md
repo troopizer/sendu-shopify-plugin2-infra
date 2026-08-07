@@ -195,21 +195,18 @@ Recommended flow:
 Example (after image push):
 
 ```bash
-aws cloudformation deploy \
+./scripts/deploy-stack.sh \
   --stack-name sendu-plugin2-staging \
-  --template-file template.staging.yaml \
-  --parameter-overrides file://parameters.staging.json EnableFrontendRuntime=true FrontendImageTag=v2026.04.12 \
-  --capabilities CAPABILITY_NAMED_IAM
+  --enable-frontend-runtime true \
+  --frontend-image-tag v2026.04.12
 ```
 
 Example bootstrap deploy (first run, before frontend image exists):
 
 ```bash
-aws cloudformation deploy \
+./scripts/deploy-stack.sh \
   --stack-name sendu-plugin2-staging \
-  --template-file template.staging.yaml \
-  --parameter-overrides file://parameters.staging.json EnableFrontendRuntime=false \
-  --capabilities CAPABILITY_NAMED_IAM
+  --bootstrap
 ```
 
 Example image tag validation before enabling frontend runtime:
@@ -231,11 +228,8 @@ aws secretsmanager describe-secret \
   --secret-id sendu/staging/app-shared \
   --profile "$AWS_PROFILE" --region "$AWS_REGION" >/dev/null
 
-aws cloudformation deploy \
+./scripts/deploy-stack.sh \
   --stack-name sendu-plugin2-staging \
-  --template-file template.staging.yaml \
-  --parameter-overrides file://parameters.staging.json \
-  --capabilities CAPABILITY_NAMED_IAM \
   --profile "$AWS_PROFILE" --region "$AWS_REGION"
 ```
 
