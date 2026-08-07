@@ -665,7 +665,6 @@ Resources:
           VERSION: "v3"
           UPSTREAM_API_BASE_URL: !Sub http://${BackendLoadBalancer.DNSName}/api
           UPSTREAM_API_TOKEN: !Sub "{{resolve:secretsmanager:${AppSecretsSecretId}:SecretString:UPSTREAM_API_TOKEN}}"
-          SHOPIFY_API_KEY: !Sub "{{resolve:secretsmanager:${AppSecretsSecretId}:SecretString:SHOPIFY_API_KEY}}"
           LOG_LEVEL: !Ref FrontendLogLevel
           ROUTED_APP_ORIGIN: !Ref RoutedAppOrigin
       Code:
