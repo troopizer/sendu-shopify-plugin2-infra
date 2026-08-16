@@ -5,11 +5,11 @@
   },
   {
     "ParameterKey": "BackendImageTag",
-    "ParameterValue": "1.0.38"
+    "ParameterValue": "1.0.62"
   },
   {
     "ParameterKey": "FrontendImageTag",
-    "ParameterValue": "1.0.35"
+    "ParameterValue": "1.0.44"
   },
   {
     "ParameterKey": "EnableFrontendRuntime",

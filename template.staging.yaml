@@ -513,6 +513,10 @@ Resources:
               Value: !Sub "{{resolve:secretsmanager:${AppSecretsSecretId}:SecretString:SHOPIFY_APP_HOST}}"
             - Name: SHOPIFY_FRONTEND_URL
               Value: !Sub "{{resolve:secretsmanager:${AppSecretsSecretId}:SecretString:SHOPIFY_FRONTEND_URL}}"
+            - Name: ADMIN_API_TOKEN
+              Value: !Sub "{{resolve:secretsmanager:${AppSecretsSecretId}:SecretString:ADMIN_API_TOKEN}}"
+            - Name: SENDU_API_BASE_URL
+              Value: !Sub "{{resolve:secretsmanager:${AppSecretsSecretId}:SecretString:SENDU_API_BASE_URL}}"
             - Name: SHOPIFY_API_SCOPES
               Value: !Ref BackendShopifyApiScopes
             - Name: SHOPIFY_API_VERSION
