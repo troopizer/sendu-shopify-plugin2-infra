@@ -5,7 +5,6 @@
 .idea/
 .vscode/
 .opencode/
-.agents/
 *.swp
 *.swo
 
