@@ -1,11 +1,24 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-STACK_NAME="sendu-shopify-plugin2-staging"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+ENV_FILE="${ENV_FILE:-${ROOT_DIR}/.env}"
+
+if [[ -f "$ENV_FILE" ]]; then
+  set -a
+  # shellcheck source=/dev/null
+  . "$ENV_FILE"
+  set +a
+fi
+
+ENVIRONMENT_NAME="${DEPLOY_ENVIRONMENT:-staging}"
+ARG_ENVIRONMENT_SET=false
+ARG_STACK_NAME=""
 INSTANCE_ID="${BASTION_INSTANCE_ID:-}"
 DB_HOST="${DB_HOST:-}"
-AWS_PROFILE_NAME="${AWS_PROFILE:-sendu}"
-AWS_REGION_NAME="${AWS_REGION:-sa-east-1}"
+AWS_PROFILE_NAME="${DEPLOY_AWS_PROFILE:-${AWS_PROFILE:-sendu}}"
+AWS_REGION_NAME="${DEPLOY_AWS_REGION:-${AWS_REGION:-${AWS_DEFAULT_REGION:-us-east-1}}}"
 LOCAL_PORT="${LOCAL_PORT:-54321}"
 REMOTE_PORT="5432"
 CLEANED_UP="false"
@@ -18,26 +31,37 @@ Open an SSM port-forwarding session through the on-demand EC2 bastion.
 The bastion is stopped automatically when the script exits or receives Ctrl+C.
 
 Options:
+  --environment NAME    Environment folder/name. Default: ${ENVIRONMENT_NAME}
   --instance-id ID       Bastion EC2 instance ID. Default: CloudFormation BastionInstanceId output.
   --db-host HOST         RDS endpoint hostname. Default: CloudFormation DatabaseEndpointAddress output.
+  --stack-name NAME      CloudFormation stack name. Default: sendu-plugin2-<environment>
   --local-port PORT      Local port for the tunnel. Default: ${LOCAL_PORT}
   --profile PROFILE      AWS profile. Default: ${AWS_PROFILE_NAME}
   --region REGION        AWS region. Default: ${AWS_REGION_NAME}
   --help                 Show this help.
 
 Environment overrides are also supported:
-  BASTION_INSTANCE_ID, DB_HOST, LOCAL_PORT, AWS_PROFILE, AWS_REGION
+  DEPLOY_ENVIRONMENT, DEPLOY_INFRA_STACK_NAME, DEPLOY_STACK_NAME, BASTION_INSTANCE_ID, DB_HOST, LOCAL_PORT, AWS_PROFILE, AWS_REGION
 USAGE
 }
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --environment)
+      ENVIRONMENT_NAME="${2:?Missing value for --environment}"
+      ARG_ENVIRONMENT_SET=true
+      shift 2
+      ;;
     --instance-id)
       INSTANCE_ID="${2:?Missing value for --instance-id}"
       shift 2
       ;;
     --db-host)
       DB_HOST="${2:?Missing value for --db-host}"
+      shift 2
+      ;;
+    --stack-name)
+      ARG_STACK_NAME="${2:?Missing value for --stack-name}"
       shift 2
       ;;
     --local-port)
@@ -63,6 +87,14 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+if [[ -n "$ARG_STACK_NAME" ]]; then
+  STACK_NAME="$ARG_STACK_NAME"
+elif [[ "$ARG_ENVIRONMENT_SET" == "true" ]]; then
+  STACK_NAME="sendu-plugin2-${ENVIRONMENT_NAME}"
+else
+  STACK_NAME="${DEPLOY_INFRA_STACK_NAME:-${DEPLOY_STACK_NAME:-sendu-plugin2-${ENVIRONMENT_NAME}}}"
+fi
 
 aws_cli() {
   aws "$@" --profile "$AWS_PROFILE_NAME" --region "$AWS_REGION_NAME"

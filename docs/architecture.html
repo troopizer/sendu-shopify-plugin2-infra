@@ -1,0 +1,912 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sendu Plugin 2 AWS Architecture</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f6f8fb;
+        --panel: #ffffff;
+        --panel-soft: #f9fbff;
+        --ink: #172033;
+        --muted: #637089;
+        --line: #dbe3ef;
+        --brand: #3157d5;
+        --brand-dark: #213a91;
+        --green: #13795b;
+        --orange: #a85d00;
+        --red: #b42318;
+        --shadow: 0 18px 45px rgba(25, 42, 70, 0.1);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background:
+          radial-gradient(circle at top left, rgba(49, 87, 213, 0.15), transparent 34rem),
+          linear-gradient(180deg, #ffffff 0, var(--bg) 34rem);
+        color: var(--ink);
+        font: 16px/1.55 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      a {
+        color: var(--brand);
+      }
+
+      code {
+        border: 1px solid var(--line);
+        border-radius: 0.45rem;
+        background: #f3f6fb;
+        color: #10204a;
+        padding: 0.1rem 0.35rem;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 0.92em;
+      }
+
+      pre.command {
+        overflow-x: auto;
+        margin: 0.75rem 0 0;
+        border: 1px solid #c7d4e8;
+        border-radius: 0.85rem;
+        background: #111827;
+        color: #f8fafc;
+        padding: 0.9rem 1rem;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 0.9rem;
+        line-height: 1.5;
+      }
+
+      pre.command code {
+        border: 0;
+        background: transparent;
+        color: inherit;
+        padding: 0;
+        font-size: inherit;
+      }
+
+      .page {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 3rem 1.25rem 4rem;
+      }
+
+      .hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1.55fr) minmax(280px, 0.9fr);
+        gap: 1.5rem;
+        align-items: stretch;
+        margin-bottom: 1.5rem;
+      }
+
+      .hero-card,
+      .card,
+      .diagram-card {
+        border: 1px solid var(--line);
+        border-radius: 1.25rem;
+        background: rgba(255, 255, 255, 0.9);
+        box-shadow: var(--shadow);
+      }
+
+      .hero-card {
+        padding: 2rem;
+      }
+
+      .eyebrow {
+        margin: 0 0 0.65rem;
+        color: var(--brand-dark);
+        font-size: 0.8rem;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      h1,
+      h2,
+      h3 {
+        line-height: 1.15;
+      }
+
+      h1 {
+        margin: 0;
+        max-width: 780px;
+        font-size: clamp(2.35rem, 5vw, 4.9rem);
+        letter-spacing: -0.055em;
+      }
+
+      h2 {
+        margin: 0 0 0.8rem;
+        font-size: clamp(1.7rem, 3vw, 2.35rem);
+        letter-spacing: -0.035em;
+      }
+
+      h3 {
+        margin: 0 0 0.65rem;
+        font-size: 1.05rem;
+      }
+
+      p {
+        margin: 0 0 1rem;
+      }
+
+      .lead {
+        max-width: 760px;
+        margin-top: 1rem;
+        color: var(--muted);
+        font-size: 1.08rem;
+      }
+
+      .meta-card {
+        padding: 1.4rem;
+      }
+
+      .meta-list {
+        display: grid;
+        gap: 0.85rem;
+        margin: 0;
+      }
+
+      .meta-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        border-bottom: 1px solid var(--line);
+        padding-bottom: 0.8rem;
+      }
+
+      .meta-row:last-child {
+        border-bottom: 0;
+        padding-bottom: 0;
+      }
+
+      .meta-label {
+        color: var(--muted);
+      }
+
+      .meta-value {
+        font-weight: 800;
+        text-align: right;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+      }
+
+      .grid-3 {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 1rem;
+      }
+
+      .step-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 1rem;
+      }
+
+      .card {
+        padding: 1.25rem;
+      }
+
+      .step-card {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+      }
+
+      .step-number {
+        display: inline-grid;
+        width: 2rem;
+        height: 2rem;
+        place-items: center;
+        border-radius: 999px;
+        background: var(--brand);
+        color: #fff;
+        font-weight: 900;
+      }
+
+      .command-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+        margin-top: 1rem;
+      }
+
+      .command-card {
+        border: 1px solid var(--line);
+        border-radius: 1rem;
+        background: var(--panel);
+        padding: 1rem;
+      }
+
+      .command-card h3 {
+        margin-bottom: 0.35rem;
+      }
+
+      .command-card p {
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+
+      .card p:last-child,
+      .diagram-card p:last-child {
+        margin-bottom: 0;
+      }
+
+      .section {
+        margin-top: 2rem;
+      }
+
+      .section-head {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1rem;
+      }
+
+      .section-head p {
+        max-width: 680px;
+        color: var(--muted);
+      }
+
+      .badge-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-top: 1rem;
+      }
+
+      .badge {
+        border: 1px solid #bfd0ff;
+        border-radius: 999px;
+        background: #eef3ff;
+        color: var(--brand-dark);
+        padding: 0.32rem 0.7rem;
+        font-size: 0.82rem;
+        font-weight: 800;
+      }
+
+      .badge.green {
+        border-color: #b6decf;
+        background: #ecf9f4;
+        color: var(--green);
+      }
+
+      .badge.orange {
+        border-color: #ffd59a;
+        background: #fff7e9;
+        color: var(--orange);
+      }
+
+      .diagram-card {
+        overflow: hidden;
+        margin-top: 1rem;
+      }
+
+      .diagram-title {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        border-bottom: 1px solid var(--line);
+        background: var(--panel-soft);
+        padding: 1rem 1.15rem;
+      }
+
+      .diagram-title strong {
+        font-size: 1rem;
+      }
+
+      .diagram-title span {
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      .mermaid-wrap {
+        overflow-x: auto;
+        padding: 1rem;
+      }
+
+      .mermaid {
+        min-width: 720px;
+      }
+
+      .env-card {
+        position: relative;
+        overflow: hidden;
+      }
+
+      .env-card::before {
+        content: "";
+        position: absolute;
+        inset: 0 0 auto;
+        height: 0.32rem;
+        background: linear-gradient(90deg, var(--brand), #62b6ff);
+      }
+
+      .env-card.prod::before {
+        background: linear-gradient(90deg, #111827, #3157d5);
+      }
+
+      .key-values {
+        display: grid;
+        gap: 0.55rem;
+        margin-top: 1rem;
+      }
+
+      .kv {
+        display: grid;
+        grid-template-columns: 9.5rem 1fr;
+        gap: 0.8rem;
+        border-top: 1px solid var(--line);
+        padding-top: 0.55rem;
+      }
+
+      .kv span:first-child {
+        color: var(--muted);
+      }
+
+      .note {
+        border-left: 4px solid var(--orange);
+        border-radius: 0.8rem;
+        background: #fff7e9;
+        padding: 1rem;
+      }
+
+      .success {
+        border-left-color: var(--green);
+        background: #ecf9f4;
+      }
+
+      .table-wrap {
+        overflow-x: auto;
+        border: 1px solid var(--line);
+        border-radius: 1rem;
+        background: var(--panel);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 780px;
+      }
+
+      th,
+      td {
+        border-bottom: 1px solid var(--line);
+        padding: 0.85rem 1rem;
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        background: #f3f6fb;
+        color: #263653;
+        font-size: 0.82rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+
+      tr:last-child td {
+        border-bottom: 0;
+      }
+
+      .footer {
+        margin-top: 2.5rem;
+        color: var(--muted);
+        font-size: 0.9rem;
+        text-align: center;
+      }
+
+      @media (max-width: 880px) {
+        .hero,
+        .grid,
+        .grid-3,
+        .step-grid,
+        .command-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .section-head {
+          display: block;
+        }
+
+        .kv {
+          grid-template-columns: 1fr;
+          gap: 0.15rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <section class="hero">
+        <div class="hero-card">
+          <p class="eyebrow">Sendu Shopify Plugin 2 Infrastructure</p>
+          <h1>Staging and Prod AWS Architecture</h1>
+          <p class="lead">
+            This document describes the architecture implemented by the CloudFormation templates in
+            <code>staging/template.yaml</code> and <code>prod/template.yaml</code>. The two environments
+            use separate stacks, separate templates, separate parameters, and separate ECR repositories.
+          </p>
+          <div class="badge-row">
+            <span class="badge">CloudFormation</span>
+            <span class="badge">ECS Fargate</span>
+            <span class="badge">Lambda Container</span>
+            <span class="badge">API Gateway</span>
+            <span class="badge">RDS PostgreSQL</span>
+            <span class="badge green">SSM Bastion</span>
+          </div>
+        </div>
+        <aside class="meta-card hero-card">
+          <h3>Repository Contract</h3>
+          <div class="meta-list">
+            <div class="meta-row">
+              <span class="meta-label">Deploy command</span>
+              <span class="meta-value"><code>make deploy ENV VERSION</code></span>
+            </div>
+            <div class="meta-row">
+              <span class="meta-label">Image source</span>
+              <span class="meta-value">Existing AWS ECR tags</span>
+            </div>
+            <div class="meta-row">
+              <span class="meta-label">Template path</span>
+              <span class="meta-value"><code>&lt;env&gt;/template.yaml</code></span>
+            </div>
+            <div class="meta-row">
+              <span class="meta-label">Parameters path</span>
+              <span class="meta-value"><code>&lt;env&gt;/parameters.json</code></span>
+            </div>
+          </div>
+        </aside>
+      </section>
+
+      <section class="section">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Overview</p>
+            <h2>Runtime Request Flow</h2>
+          </div>
+          <p>
+            Public browser traffic enters through API Gateway for the frontend runtime. API traffic is
+            proxied to the backend ALB, which forwards to the Rails ECS service. The backend connects to
+            private PostgreSQL and reads application secrets from Secrets Manager.
+          </p>
+        </div>
+        <div class="diagram-card">
+          <div class="diagram-title">
+            <strong>Application traffic</strong>
+            <span>Same shape for staging and prod, with environment-specific names</span>
+          </div>
+          <div class="mermaid-wrap">
+            <pre class="mermaid">
+flowchart LR
+  user["Shopify Admin / Browser"]
+  api["API Gateway HTTP API"]
+  lambda["Frontend Lambda<br/>container image"]
+  alb["Public ALB<br/>port 80"]
+  ecs["Rails Backend<br/>ECS Fargate"]
+  db[("RDS PostgreSQL<br/>private DB subnets")]
+  secrets["Secrets Manager<br/>app shared secret"]
+  ecrF["Frontend ECR repo"]
+  ecrB["Backend ECR repo"]
+
+  user --> api --> lambda
+  lambda -- "/api proxy" --> alb --> ecs --> db
+  ecs -. reads .-> secrets
+  lambda -. reads .-> secrets
+  ecrF -. image tag .-> lambda
+  ecrB -. image tag .-> ecs
+
+  classDef public fill:#eef3ff,stroke:#3157d5,color:#172033
+  classDef compute fill:#ecf9f4,stroke:#13795b,color:#172033
+  classDef data fill:#fff7e9,stroke:#a85d00,color:#172033
+  class user,api,alb public
+  class lambda,ecs compute
+  class db,secrets,ecrF,ecrB data
+            </pre>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Environments</p>
+            <h2>Staging and Prod Stacks</h2>
+          </div>
+          <p>
+            Each environment has its own CloudFormation template and parameters. This makes future
+            staging-only or prod-only infrastructure changes explicit and reviewable.
+          </p>
+        </div>
+        <div class="grid">
+          <article class="card env-card">
+            <h3>Staging</h3>
+            <p>Lower-risk environment for validation, debug logging, and pre-production checks.</p>
+            <div class="key-values">
+              <div class="kv"><span>Stack</span><strong><code>sendu-plugin2-staging</code></strong></div>
+              <div class="kv"><span>Template</span><strong><code>staging/template.yaml</code></strong></div>
+              <div class="kv"><span>Parameters</span><strong><code>staging/parameters.json</code></strong></div>
+              <div class="kv"><span>Secret</span><strong><code>sendu/staging/app-shared</code></strong></div>
+              <div class="kv"><span>Frontend log level</span><strong><code>debug</code></strong></div>
+              <div class="kv"><span>Current tags</span><strong>backend <code>1.0.38</code>, frontend <code>1.0.35</code></strong></div>
+            </div>
+          </article>
+          <article class="card env-card prod">
+            <h3>Prod</h3>
+            <p>Production environment with independent stack state, template, parameters, and secrets.</p>
+            <div class="key-values">
+              <div class="kv"><span>Stack</span><strong><code>sendu-plugin2-prod</code></strong></div>
+              <div class="kv"><span>Template</span><strong><code>prod/template.yaml</code></strong></div>
+              <div class="kv"><span>Parameters</span><strong><code>prod/parameters.json</code></strong></div>
+              <div class="kv"><span>Secret</span><strong><code>sendu/prod/app-shared</code></strong></div>
+              <div class="kv"><span>Frontend log level</span><strong><code>info</code></strong></div>
+              <div class="kv"><span>Current tags</span><strong>backend <code>1.0.38</code>, frontend <code>1.0.35</code></strong></div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Network</p>
+            <h2>VPC and Subnet Layout</h2>
+          </div>
+          <p>
+            The VPC spans two availability zones. Public subnets host the ALB, current ECS tasks, and the
+            SSM-only bastion. Private DB subnets host PostgreSQL. Private app subnets are defined but are
+            not currently used by the ECS service.
+          </p>
+        </div>
+        <div class="diagram-card">
+          <div class="diagram-title">
+            <strong>Network placement</strong>
+            <span>VPC CIDR <code>10.30.0.0/16</code></span>
+          </div>
+          <div class="mermaid-wrap">
+            <pre class="mermaid">
+flowchart TB
+  internet((Internet))
+  igw["Internet Gateway"]
+
+  subgraph vpc["VPC 10.30.0.0/16"]
+    subgraph public["Public subnets"]
+      pub1["AZ1 public<br/>10.30.0.0/24<br/>ALB, ECS task, bastion"]
+      pub2["AZ2 public<br/>10.30.1.0/24<br/>ALB, ECS task"]
+    end
+
+    subgraph app["Private app subnets"]
+      app1["AZ1 app<br/>10.30.10.0/24<br/>defined, not used by ECS"]
+      app2["AZ2 app<br/>10.30.11.0/24<br/>defined, not used by ECS"]
+    end
+
+    subgraph dbtier["Private DB subnets"]
+      db1["AZ1 DB<br/>10.30.20.0/24"]
+      db2["AZ2 DB<br/>10.30.21.0/24"]
+      rds[("RDS PostgreSQL")]
+    end
+
+    alb["Application Load Balancer"]
+    ecs["ECS Fargate service<br/>AssignPublicIp ENABLED"]
+    bastion["EC2 SSM bastion<br/>no inbound network rules"]
+  end
+
+  internet --> igw --> alb
+  alb --> ecs --> rds
+  bastion -. port forward .-> rds
+  rds --- db1
+  rds --- db2
+  ecs --- pub1
+  ecs --- pub2
+  alb --- pub1
+  alb --- pub2
+  bastion --- pub1
+
+  classDef public fill:#eef3ff,stroke:#3157d5,color:#172033
+  classDef private fill:#f3f6fb,stroke:#637089,color:#172033
+  classDef data fill:#fff7e9,stroke:#a85d00,color:#172033
+  class internet,igw,alb,pub1,pub2 public
+  class app1,app2,bastion,ecs private
+  class db1,db2,rds data
+            </pre>
+          </div>
+        </div>
+        <div class="grid-3" style="margin-top: 1rem">
+          <article class="card">
+            <h3>Public ingress</h3>
+            <p>The ALB accepts HTTP on port <code>80</code> from <code>0.0.0.0/0</code>. API Gateway fronts the frontend Lambda runtime.</p>
+          </article>
+          <article class="card note">
+            <h3>Current ECS placement</h3>
+            <p>The ECS service currently runs in public subnets with public IP assignment enabled, while still only accepting traffic from the ALB security group.</p>
+          </article>
+          <article class="card success">
+            <h3>Database isolation</h3>
+            <p>PostgreSQL is private and only allows port <code>5432</code> from the backend service security group and the bastion security group.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Security</p>
+            <h2>Access Boundaries</h2>
+          </div>
+          <p>
+            The templates use security groups, IAM roles, Secrets Manager references, and SSM session
+            access to keep application and database access controlled per environment.
+          </p>
+        </div>
+        <div class="diagram-card">
+          <div class="diagram-title">
+            <strong>Security group and secret access</strong>
+            <span>Least-open inbound rules in the stack</span>
+          </div>
+          <div class="mermaid-wrap">
+            <pre class="mermaid">
+flowchart LR
+  internet["Internet"]
+  albsg["ALB SG<br/>in: tcp/80 from world"]
+  backendsg["Backend SG<br/>in: tcp/3000 from ALB SG"]
+  dbsg["Database SG<br/>in: tcp/5432 from backend SG and bastion SG"]
+  bastionsg["Bastion SG<br/>no inbound rules"]
+  appsecret["App shared secret<br/>SHOPIFY keys, Rails key, DB app user"]
+  dbsecret["Generated RDS master secret"]
+  ecsrole["ECS task execution role"]
+  lambdarole["Lambda execution role"]
+  iamuser["Authorized IAM user or role"]
+  ssm["SSM Session Manager"]
+
+  internet --> albsg --> backendsg --> dbsg
+  bastionsg --> dbsg
+  iamuser --> ssm --> bastionsg
+  ecsrole -. reads .-> dbsecret
+  backendsg -. runtime refs .-> appsecret
+  lambdarole -. logs and runtime refs .-> appsecret
+
+  classDef sg fill:#eef3ff,stroke:#3157d5,color:#172033
+  classDef secret fill:#fff7e9,stroke:#a85d00,color:#172033
+  classDef identity fill:#ecf9f4,stroke:#13795b,color:#172033
+  class albsg,backendsg,dbsg,bastionsg sg
+  class appsecret,dbsecret secret
+  class ecsrole,lambdarole,iamuser,ssm identity
+            </pre>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Deployment</p>
+            <h2>Infra Deployment Lifecycle</h2>
+          </div>
+          <p>
+            This infra repository deploys CloudFormation only. Docker images are built and pushed by the
+            owning application repositories, then this repo deploys those existing ECR image tags to the
+            selected environment.
+          </p>
+        </div>
+
+        <div class="step-grid">
+          <article class="card step-card">
+            <span class="step-number">1</span>
+            <div>
+              <h3>Choose environment</h3>
+              <p>Deploy to <code>staging</code> or <code>prod</code>. Environment defaults can come from <code>.env</code>, exported variables, or explicit Makefile variables.</p>
+            </div>
+          </article>
+          <article class="card step-card">
+            <span class="step-number">2</span>
+            <div>
+              <h3>Choose image tags</h3>
+              <p>Use one shared <code>VERSION</code>, choose <code>VERSION=latest</code>, or provide separate <code>BACKEND_VERSION</code> and <code>FRONTEND_VERSION</code>.</p>
+            </div>
+          </article>
+          <article class="card step-card">
+            <span class="step-number">3</span>
+            <div>
+              <h3>Run deploy</h3>
+              <p>The Makefile calls <code>scripts/deploy.sh</code>, which validates the template, checks ECR tags, and applies a CloudFormation change set.</p>
+            </div>
+          </article>
+          <article class="card step-card success">
+            <span class="step-number">4</span>
+            <div>
+              <h3>Verify health</h3>
+              <p>After CloudFormation completes, checks cover ECS stability, ALB target health, Lambda status, HTTP health, and recent diagnostic logs.</p>
+            </div>
+          </article>
+        </div>
+
+        <div class="command-grid">
+          <article class="command-card">
+            <h3>Same backend and frontend tag</h3>
+            <p>Use when both runtime images were pushed with the same version tag.</p>
+            <pre class="command"><code>make deploy staging VERSION=&lt;image-tag&gt;
+make deploy prod VERSION=&lt;image-tag&gt;</code></pre>
+          </article>
+          <article class="command-card">
+            <h3>Latest backend and frontend</h3>
+            <p>Use only when the intended deployment is explicitly the latest ECR tag for both images.</p>
+            <pre class="command"><code>make deploy staging VERSION=latest
+make deploy prod VERSION=latest</code></pre>
+          </article>
+          <article class="command-card">
+            <h3>Separate backend and frontend tags</h3>
+            <p>Use when the backend and frontend application repositories produced different image tags.</p>
+            <pre class="command"><code>make deploy staging BACKEND_VERSION=&lt;backend-tag&gt; FRONTEND_VERSION=&lt;frontend-tag&gt;
+make deploy prod BACKEND_VERSION=&lt;backend-tag&gt; FRONTEND_VERSION=&lt;frontend-tag&gt;</code></pre>
+          </article>
+          <article class="command-card note">
+            <h3>Other deployment options</h3>
+            <p>Use the built-in help instead of relying on duplicated documentation.</p>
+            <pre class="command"><code>make help
+./scripts/deploy.sh --help
+./scripts/monitor-deploy.sh --help
+./scripts/bootstrap.sh --help</code></pre>
+          </article>
+        </div>
+
+        <div class="diagram-card">
+          <div class="diagram-title">
+            <strong>Deploy sequence</strong>
+            <span><code>make deploy prod VERSION=&lt;image-tag&gt;</code></span>
+          </div>
+          <div class="mermaid-wrap">
+            <pre class="mermaid">
+sequenceDiagram
+  autonumber
+  participant Operator
+  participant Makefile
+  participant DeployScript as scripts/deploy.sh
+  participant CloudFormation
+  participant ECR
+  participant ECS
+  participant Lambda
+
+  Operator->>Makefile: make deploy ENV VERSION or BACKEND_VERSION/FRONTEND_VERSION
+  Makefile->>DeployScript: --environment ENV --backend-image-tag TAG --frontend-image-tag TAG
+  DeployScript->>CloudFormation: validate template and describe stack outputs
+  CloudFormation-->>DeployScript: BackendEcrRepositoryUri, FrontendEcrRepositoryUri
+  DeployScript->>ECR: describe backend image tag
+  ECR-->>DeployScript: image exists
+  DeployScript->>ECR: describe frontend image tag
+  ECR-->>DeployScript: image exists
+  DeployScript->>CloudFormation: create and execute change set
+  par Watch stack update
+    DeployScript->>CloudFormation: poll stack events and status
+  and Watch backend rollout
+    DeployScript->>ECS: poll service, stopped tasks, and failed task logs
+  end
+  DeployScript->>ECS: wait service stable and check target health
+  DeployScript->>Lambda: check frontend function status
+  DeployScript->>CloudFormation: read outputs for HTTP health checks
+  DeployScript->>Operator: deployment healthy or actionable failure
+            </pre>
+          </div>
+        </div>
+        <div class="grid" style="margin-top: 1rem">
+          <article class="card">
+            <h3>Bootstrap</h3>
+            <p>Use <code>make bootstrap staging</code> or <code>make bootstrap prod</code> for first-time stack creation. Bootstrap sets <code>BackendDesiredCount=0</code> and <code>EnableFrontendRuntime=false</code> so ECR repositories can be created before images exist.</p>
+          </article>
+          <article class="card">
+            <h3>Normal deploy</h3>
+            <p>Use <code>make deploy</code> after image tags exist in ECR. Stopped ECS tasks and backend/Lambda warning or error log findings are reported as diagnostics; they do not fail deployment by themselves.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Comparison</p>
+            <h2>Staging vs Prod</h2>
+          </div>
+          <p>
+            The environment templates currently share the same baseline architecture. Operational values
+            are split by environment through independent parameters and stack names.
+          </p>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Area</th>
+                <th>Staging</th>
+                <th>Prod</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>CloudFormation template</td>
+                <td><code>staging/template.yaml</code></td>
+                <td><code>prod/template.yaml</code></td>
+              </tr>
+              <tr>
+                <td>Parameters file</td>
+                <td><code>staging/parameters.json</code></td>
+                <td><code>prod/parameters.json</code></td>
+              </tr>
+              <tr>
+                <td>Stack name</td>
+                <td><code>sendu-plugin2-staging</code></td>
+                <td><code>sendu-plugin2-prod</code></td>
+              </tr>
+              <tr>
+                <td>App secret</td>
+                <td><code>sendu/staging/app-shared</code></td>
+                <td><code>sendu/prod/app-shared</code></td>
+              </tr>
+              <tr>
+                <td>Frontend log level</td>
+                <td><code>debug</code></td>
+                <td><code>info</code></td>
+              </tr>
+              <tr>
+                <td>ECR repositories</td>
+                <td><code>sendu-plugin2-staging-backend</code>, <code>sendu-plugin2-staging-frontend</code></td>
+                <td><code>sendu-plugin2-prod-backend</code>, <code>sendu-plugin2-prod-frontend</code></td>
+              </tr>
+              <tr>
+                <td>Database</td>
+                <td>Private RDS PostgreSQL, <code>db.t4g.small</code>, 7-day backup retention</td>
+                <td>Private RDS PostgreSQL, <code>db.t4g.small</code>, 7-day backup retention</td>
+              </tr>
+              <tr>
+                <td>Runtime compute</td>
+                <td>ECS Fargate backend and Lambda container frontend</td>
+                <td>ECS Fargate backend and Lambda container frontend</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Outputs</p>
+            <h2>Important Stack Outputs</h2>
+          </div>
+          <p>
+            These outputs are used by deployment scripts, operators, and support workflows.
+          </p>
+        </div>
+        <div class="grid-3">
+          <article class="card">
+            <h3>Image repositories</h3>
+            <p><code>BackendEcrRepositoryUri</code> and <code>FrontendEcrRepositoryUri</code> identify where image tags must already exist before deploy.</p>
+          </article>
+          <article class="card">
+            <h3>Application endpoints</h3>
+            <p><code>BackendBaseUrl</code>, <code>FrontendApiUrl</code>, and <code>FrontendApiBaseUrl</code> expose runtime URLs for each environment.</p>
+          </article>
+          <article class="card">
+            <h3>Database access</h3>
+            <p><code>DatabaseEndpointAddress</code>, <code>DatabaseEndpointPort</code>, and <code>BastionInstanceId</code> support private DB access through SSM.</p>
+          </article>
+        </div>
+      </section>
+
+      <p class="footer">
+        Generated from the current infrastructure repository layout. Mermaid diagrams require browser access to the CDN script below.
+      </p>
+    </main>
+
+    <script type="module">
+      import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
+      mermaid.initialize({ startOnLoad: true, theme: "base", securityLevel: "loose" });
+    </script>
+  </body>
+</html>

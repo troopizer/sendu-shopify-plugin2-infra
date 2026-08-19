@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: Sendu staging stack (VPC, ECS, ALB, RDS, Lambda, API Gateway, ECR)
+Description: Sendu environment stack (VPC, ECS, ALB, RDS, Lambda, API Gateway, ECR)
 
 Parameters:
   ProjectName:
@@ -7,7 +7,6 @@ Parameters:
     Default: sendu-plugin2
   EnvironmentName:
     Type: String
-    Default: staging
 
   BackendContainerPort:
     Type: Number
@@ -85,7 +84,6 @@ Parameters:
   AppSecretsSecretId:
     Type: String
     Description: Secrets Manager secret name or ARN containing shared app secrets
-    Default: sendu/staging/app-shared
   FrontendLogLevel:
     Type: String
     Default: info
@@ -94,11 +92,6 @@ Parameters:
       - info
       - warn
       - error
-
-  RoutedAppOrigin:
-    Type: String
-    Description: Optional HTTPS origin for the target-shop routed app. Leave empty to disable routing.
-    Default: ""
 
   LambdaMemorySize:
     Type: Number
@@ -513,10 +506,6 @@ Resources:
               Value: !Sub "{{resolve:secretsmanager:${AppSecretsSecretId}:SecretString:SHOPIFY_APP_HOST}}"
             - Name: SHOPIFY_FRONTEND_URL
               Value: !Sub "{{resolve:secretsmanager:${AppSecretsSecretId}:SecretString:SHOPIFY_FRONTEND_URL}}"
-            - Name: ADMIN_API_TOKEN
-              Value: !Sub "{{resolve:secretsmanager:${AppSecretsSecretId}:SecretString:ADMIN_API_TOKEN}}"
-            - Name: SENDU_API_BASE_URL
-              Value: !Sub "{{resolve:secretsmanager:${AppSecretsSecretId}:SecretString:SENDU_API_BASE_URL}}"
             - Name: SHOPIFY_API_SCOPES
               Value: !Ref BackendShopifyApiScopes
             - Name: SHOPIFY_API_VERSION
@@ -594,7 +583,7 @@ Resources:
   DatabaseSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
-      DBSubnetGroupDescription: Subnet group for staging PostgreSQL
+      DBSubnetGroupDescription: !Sub Subnet group for ${EnvironmentName} PostgreSQL
       SubnetIds:
         - !Ref PrivateDbSubnet1
         - !Ref PrivateDbSubnet2
@@ -604,7 +593,7 @@ Resources:
     Type: AWS::SecretsManager::Secret
     Properties:
       Name: !Sub ${ProjectName}/${EnvironmentName}/rds/master-credentials
-      Description: Master credentials for staging PostgreSQL
+      Description: !Sub Master credentials for ${EnvironmentName} PostgreSQL
       GenerateSecretString:
         SecretStringTemplate: '{"username":"sendu_admin","port":"5432"}'
         GenerateStringKey: password
@@ -636,7 +625,6 @@ Resources:
 
   FrontendLambdaExecutionRole:
     Type: AWS::IAM::Role
-    Condition: CreateFrontendRuntime
     Properties:
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
@@ -650,7 +638,6 @@ Resources:
 
   FrontendLambdaLogGroup:
     Type: AWS::Logs::LogGroup
-    Condition: CreateFrontendRuntime
     Properties:
       LogGroupName: !Sub /aws/lambda/${ProjectName}-${EnvironmentName}-front
       RetentionInDays: 14
@@ -670,13 +657,11 @@ Resources:
           UPSTREAM_API_BASE_URL: !Sub http://${BackendLoadBalancer.DNSName}/api
           UPSTREAM_API_TOKEN: !Sub "{{resolve:secretsmanager:${AppSecretsSecretId}:SecretString:UPSTREAM_API_TOKEN}}"
           LOG_LEVEL: !Ref FrontendLogLevel
-          ROUTED_APP_ORIGIN: !Ref RoutedAppOrigin
       Code:
         ImageUri: !Sub ${FrontendEcrRepository.RepositoryUri}:${FrontendImageTag}
 
   FrontendHttpApi:
     Type: AWS::ApiGatewayV2::Api
-    Condition: CreateFrontendRuntime
     Properties:
       Name: !Sub ${ProjectName}-${EnvironmentName}-front-http-api
       ProtocolType: HTTP
@@ -723,7 +708,6 @@ Resources:
 
   FrontendHttpApiStage:
     Type: AWS::ApiGatewayV2::Stage
-    Condition: CreateFrontendRuntime
     Properties:
       ApiId: !Ref FrontendHttpApi
       StageName: $default
@@ -784,11 +768,9 @@ Outputs:
     Value: !Ref BastionSecurityGroup
 
   FrontendApiUrl:
-    Condition: CreateFrontendRuntime
     Description: API Gateway endpoint used by the frontend runtime
     Value: !GetAtt FrontendHttpApi.ApiEndpoint
 
   FrontendApiBaseUrl:
-    Condition: CreateFrontendRuntime
     Description: API base URL for frontend runtime
     Value: !Sub ${FrontendHttpApi.ApiEndpoint}/api
