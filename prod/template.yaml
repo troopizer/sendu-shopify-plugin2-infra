@@ -477,7 +477,7 @@ Resources:
               Protocol: tcp
           Environment:
             - Name: RAILS_ENV
-              Value: !Ref EnvironmentName
+              Value: production
             - Name: SHOPIFY_API_KEY
               Value: !Sub "{{resolve:secretsmanager:${AppSecretsSecretId}:SecretString:SHOPIFY_API_KEY}}"
             - Name: SHOPIFY_API_SECRET
@@ -492,8 +492,19 @@ Resources:
               Value: !Ref BackendShopifyApiVersion
             - Name: RAILS_MASTER_KEY
               Value: !Sub "{{resolve:secretsmanager:${AppSecretsSecretId}:SecretString:RAILS_MASTER_KEY}}"
-            - Name: DATABASE_URL
-              Value: !Sub "postgres://{{resolve:secretsmanager:${AppSecretsSecretId}:SecretString:DB_USERNAME}}:{{resolve:secretsmanager:${AppSecretsSecretId}:SecretString:DB_PASSWORD}}@${Database.Endpoint.Address}:5432/${DatabaseName}"
+            - Name: SECRET_KEY_BASE
+              Value: !Sub "{{resolve:secretsmanager:${AppSecretsSecretId}:SecretString:SECRET_KEY_BASE}}"
+            - Name: DATABASE_HOST
+              Value: !GetAtt Database.Endpoint.Address
+            - Name: DATABASE_NAME
+              Value: !Ref DatabaseName
+            - Name: DATABASE_PORT
+              Value: !GetAtt Database.Endpoint.Port
+          Secrets:
+            - Name: DATABASE_USERNAME
+              ValueFrom: !Sub "${DatabaseCredentialsSecret}:username::"
+            - Name: DATABASE_PASSWORD
+              ValueFrom: !Sub "${DatabaseCredentialsSecret}:password::"
 
           LogConfiguration:
             LogDriver: awslogs

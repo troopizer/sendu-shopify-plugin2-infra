@@ -174,10 +174,9 @@ Initialize and maintain the shared app secret with:
 ./scripts/secrets set SHOPIFY_API_KEY
 ./scripts/secrets set SHOPIFY_API_SECRET
 ./scripts/secrets set RAILS_MASTER_KEY
+openssl rand -hex 64 | ./scripts/secrets set SECRET_KEY_BASE
 ./scripts/secrets set SHOPIFY_APP_HOST
 ./scripts/secrets set SHOPIFY_FRONTEND_URL
-./scripts/secrets set DB_USERNAME
-./scripts/secrets set DB_PASSWORD
 ./scripts/secrets set UPSTREAM_API_TOKEN
 ```
 
@@ -190,12 +189,13 @@ For prod:
 ./scripts/secrets --environment prod set SHOPIFY_API_KEY
 ./scripts/secrets --environment prod set SHOPIFY_API_SECRET
 ./scripts/secrets --environment prod set RAILS_MASTER_KEY
+openssl rand -hex 64 | ./scripts/secrets --environment prod set SECRET_KEY_BASE
 ./scripts/secrets --environment prod set SHOPIFY_APP_HOST
 ./scripts/secrets --environment prod set SHOPIFY_FRONTEND_URL
-./scripts/secrets --environment prod set DB_USERNAME
-./scripts/secrets --environment prod set DB_PASSWORD
 ./scripts/secrets --environment prod set UPSTREAM_API_TOKEN
 ```
+
+The backend receives its database username and password directly from the RDS master-credentials secret. Do not copy them into the shared app secret.
 
 ## Validation
 
