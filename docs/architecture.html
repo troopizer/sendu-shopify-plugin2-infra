@@ -432,8 +432,8 @@
           <h1>Staging and Prod AWS Architecture</h1>
           <p class="lead">
             This document describes the architecture implemented by the CloudFormation templates in
-            <code>staging/template.yaml</code> and <code>prod/template.yaml</code>. The two environments
-            use separate stacks, separate templates, separate parameters, and separate ECR repositories.
+            <code>shared/template.yaml</code>, <code>staging/template.yaml</code>, and <code>prod/template.yaml</code>.
+            The environments use separate stacks and parameters while sharing ECR repositories owned by the shared stack.
           </p>
           <div class="badge-row">
             <span class="badge">CloudFormation</span>
@@ -702,21 +702,21 @@ flowchart LR
             <span class="step-number">1</span>
             <div>
               <h3>Choose environment</h3>
-              <p>Deploy to <code>staging</code> or <code>prod</code>. Environment defaults can come from <code>.env</code>, exported variables, or explicit Makefile variables.</p>
+              <p>Deploy to <code>staging</code> or <code>prod</code>. AWS defaults come from the selected environment folder, and Make selects the environment inline.</p>
             </div>
           </article>
           <article class="card step-card">
             <span class="step-number">2</span>
             <div>
               <h3>Choose image tags</h3>
-              <p>Use one shared <code>VERSION</code>, choose <code>VERSION=latest</code>, or provide separate <code>BACKEND_VERSION</code> and <code>FRONTEND_VERSION</code>.</p>
+              <p>Omit tags to resolve the most recently pushed tagged images, use one shared <code>VERSION</code>, or provide separate <code>BACKEND_VERSION</code> and <code>FRONTEND_VERSION</code>.</p>
             </div>
           </article>
           <article class="card step-card">
             <span class="step-number">3</span>
             <div>
               <h3>Run deploy</h3>
-              <p>The Makefile calls <code>scripts/deploy.sh</code>, which validates the template, checks ECR tags, and applies a CloudFormation change set.</p>
+              <p>The Makefile calls <code>scripts/deploy.sh</code>, which validates the template, confirms the stack is terminal, checks ECR tags, and applies a CloudFormation change set.</p>
             </div>
           </article>
           <article class="card step-card success">
@@ -776,7 +776,9 @@ sequenceDiagram
 
   Operator->>Makefile: make deploy ENV VERSION or BACKEND_VERSION/FRONTEND_VERSION
   Makefile->>DeployScript: --environment ENV --backend-image-tag TAG --frontend-image-tag TAG
-  DeployScript->>CloudFormation: validate template and describe stack outputs
+  DeployScript->>CloudFormation: validate template and check stack exists
+  CloudFormation-->>DeployScript: terminal stack status
+  DeployScript->>CloudFormation: describe stack outputs
   CloudFormation-->>DeployScript: BackendEcrRepositoryUri, FrontendEcrRepositoryUri
   DeployScript->>ECR: describe backend image tag
   ECR-->>DeployScript: image exists
@@ -798,11 +800,11 @@ sequenceDiagram
         <div class="grid" style="margin-top: 1rem">
           <article class="card">
             <h3>Bootstrap</h3>
-            <p>Use <code>make bootstrap staging</code> or <code>make bootstrap prod</code> for first-time stack creation. Bootstrap sets <code>BackendDesiredCount=0</code> and <code>EnableFrontendRuntime=false</code> so ECR repositories can be created before images exist.</p>
+            <p>Use <code>make shared-bootstrap</code> first, then <code>make bootstrap staging</code> or <code>make bootstrap prod</code>. Environment bootstrap sets <code>BackendDesiredCount=0</code> and <code>EnableFrontendRuntime=false</code>.</p>
           </article>
           <article class="card">
             <h3>Normal deploy</h3>
-            <p>Use <code>make deploy</code> after image tags exist in ECR. Stopped ECS tasks and backend/Lambda warning or error log findings are reported as diagnostics; they do not fail deployment by themselves.</p>
+            <p>Use <code>make deploy</code> after image tags exist in ECR and the CloudFormation stack is in a terminal state. Normal deploy overrides image tags and enables the frontend runtime, but keeps <code>BackendDesiredCount</code> from the selected environment parameters. Stopped ECS tasks and backend/Lambda warning or error log findings are reported as diagnostics; they do not fail deployment by themselves.</p>
           </article>
         </div>
       </section>
@@ -855,8 +857,7 @@ sequenceDiagram
               </tr>
               <tr>
                 <td>ECR repositories</td>
-                <td><code>sendu-plugin2-staging-backend</code>, <code>sendu-plugin2-staging-frontend</code></td>
-                <td><code>sendu-plugin2-prod-backend</code>, <code>sendu-plugin2-prod-frontend</code></td>
+                <td colspan="2"><code>sendu-plugin2-backend</code>, <code>sendu-plugin2-frontend</code> from <code>shared/template.yaml</code></td>
               </tr>
               <tr>
                 <td>Database</td>

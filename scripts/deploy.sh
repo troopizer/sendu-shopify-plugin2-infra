@@ -5,6 +5,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 DEPLOY_STARTED_AT="$(date +%s)"
+DEPLOY_PHASE_TOTAL=8
 PLAN_ONLY=false
 DRY_RUN=false
 CF_CHANGE_SET_TYPE=UPDATE
@@ -55,7 +56,7 @@ EOF
 
 cleanup_watchers() {
   local pid
-  [[ "$WATCHERS_STARTED" == "true" ]] || return
+  [[ "$WATCHERS_STARTED" == "true" ]] || return 0
 
   for pid in ${WATCHER_PIDS:-}; do
     kill "$pid" >/dev/null 2>&1 || true
@@ -115,8 +116,21 @@ run_post_deploy_checks() {
   fi
 }
 
+assert_stack_ready_for_deploy() {
+  local status=""
+
+  status="$(stack_status)"
+  [[ -n "$status" && "$status" != "None" ]] || die "Could not resolve CloudFormation stack status for ${STACK_NAME}"
+
+  if ! is_stack_terminal_status "$status"; then
+    die "CloudFormation stack '${STACK_NAME}' is not in a terminal state: ${status}. Wait for the current operation to finish before deploying."
+  fi
+
+  printf '  CloudFormation stack status: %s\n' "$status"
+}
+
 init_config_defaults
-load_env_file
+load_env_file "$@"
 
 while [[ $# -gt 0 ]]; do
   if parse_common_arg "$@"; then
@@ -151,32 +165,53 @@ trap cleanup_watchers EXIT
 
 require_cmd aws
 require_cmd jq
+
+phase "Resolve deployment configuration"
 resolve_deploy_config
-require_image_tags
+resolve_missing_image_tags
 load_parameter_overrides
 set_parameter_override BackendImageTag "$BACKEND_IMAGE_TAG"
 set_parameter_override FrontendImageTag "$FRONTEND_IMAGE_TAG"
 set_parameter_override EnableFrontendRuntime true
-set_parameter_override BackendDesiredCount 1
+phase_complete "Deployment configuration resolved"
 
-log "Resolved deploy values"
-print_resolved_config
-printf '  plan only: %s\n' "$PLAN_ONLY"
-printf '  dry run: %s\n' "$DRY_RUN"
+phase "Display deployment configuration"
+print_kv_table \
+  "Profile" "$AWS_PROFILE" \
+  "Region" "$AWS_REGION" \
+  "Environment" "$ENVIRONMENT_NAME" \
+  "Stack" "$STACK_NAME" \
+  "Template" "$TEMPLATE_FILE" \
+  "Parameters" "$PARAMETERS_FILE" \
+  "Backend image" "$BACKEND_IMAGE_TAG" \
+  "Frontend image" "$FRONTEND_IMAGE_TAG" \
+  "Plan only" "$PLAN_ONLY" \
+  "Dry run" "$DRY_RUN"
+phase_complete "Deployment configuration displayed"
 
-log "Validating CloudFormation template"
+phase "Validate CloudFormation template"
 validate_template
+phase_complete "CloudFormation template validated"
 
+phase "Check stack state and shared ECR images"
 if [[ "$DRY_RUN" != "true" ]]; then
   stack_exists || die "CloudFormation stack '${STACK_NAME}' does not exist. Run './scripts/bootstrap.sh --environment ${ENVIRONMENT_NAME}' first."
+  phase_note "Checking CloudFormation stack state"
+  assert_stack_ready_for_deploy
+  phase_note "Checking shared ECR image tags"
   assert_required_ecr_images_exist "$(get_parameter_override EnableFrontendRuntime)"
+  print_ecr_summary
+else
+  phase_note "Skipped AWS state checks in dry-run mode"
 fi
+phase_complete "Stack and shared ECR checks complete"
 
-log "Creating CloudFormation change set"
+phase "Create CloudFormation change set"
 create_change_set
+phase_complete "CloudFormation change set created"
 
 if [[ "$DRY_RUN" == "true" ]]; then
-  log "Dry run complete"
+  phase_note "Dry run complete; change set was not executed"
   exit 0
 fi
 
@@ -198,7 +233,8 @@ if [[ "$PLAN_ONLY" == "true" ]]; then
   exit 0
 fi
 
-log "Executing CloudFormation change set"
+phase "Execute CloudFormation change set"
+phase_note "Applying infrastructure changes"
 previous_stack_status="$(stack_status)"
 execute_change_set
 
@@ -210,11 +246,14 @@ if ! wait_stack_operation_started "$previous_stack_status"; then
     die "Deployment failed with stack status ${STACK_FINAL_STATUS}"
   fi
 fi
+phase_complete "CloudFormation change set executed"
 
-log "Monitoring CloudFormation and ECS while stack update runs"
+phase "Monitor CloudFormation and ECS"
+phase_note "Watching CloudFormation events and ECS rollout"
 start_watchers
 wait_stack_terminal
 cleanup_watchers
+phase_complete "CloudFormation and ECS monitoring complete"
 
 if ! is_stack_success_status "$STACK_FINAL_STATUS"; then
   print_recent_stack_events
@@ -223,5 +262,16 @@ if ! is_stack_success_status "$STACK_FINAL_STATUS"; then
   die "Deployment failed with stack status ${STACK_FINAL_STATUS}"
 fi
 
+phase "Run post-deployment health checks"
 run_post_deploy_checks
-log "Deployment complete and healthy"
+phase_complete "Post-deployment health checks passed"
+
+elapsed=$(( $(date +%s) - DEPLOY_STARTED_AT ))
+printf '\n%s%s Deployment successful%s\n' "$COLOR_GREEN" "$ICON_OK" "$COLOR_RESET"
+print_kv_table \
+  "Environment" "$ENVIRONMENT_NAME" \
+  "Stack" "$STACK_NAME" \
+  "Backend image" "$BACKEND_IMAGE_TAG" \
+  "Frontend image" "$FRONTEND_IMAGE_TAG" \
+  "Duration" "$(format_duration "$elapsed")" \
+  "Status" "SUCCESS"

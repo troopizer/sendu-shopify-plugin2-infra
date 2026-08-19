@@ -15,7 +15,21 @@ resolve_profile_region() {
 }
 
 load_env_file() {
-  ENV_FILE="${ENV_FILE:-${ROOT_DIR}/.env}"
+  local environment="staging"
+  local arg=""
+  local value=""
+
+  while [[ $# -gt 0 ]]; do
+    arg="$1"
+    value="${2:-}"
+    if [[ "$arg" == "--environment" && -n "$value" ]]; then
+      environment="$value"
+      break
+    fi
+    shift
+  done
+
+  ENV_FILE="${ENV_FILE:-${ROOT_DIR}/${environment}/.env}"
 
   if [[ -f "$ENV_FILE" ]]; then
     log "Loading defaults from ${ENV_FILE}"
@@ -95,19 +109,14 @@ parse_common_arg() {
 resolve_deploy_config() {
   AWS_PROFILE="${ARG_AWS_PROFILE:-${DEPLOY_AWS_PROFILE:-${AWS_PROFILE:-default}}}"
   AWS_REGION="${ARG_AWS_REGION:-${DEPLOY_AWS_REGION:-${AWS_REGION:-${AWS_DEFAULT_REGION:-}}}}"
-  ENVIRONMENT_NAME="${ARG_ENVIRONMENT:-${DEPLOY_ENVIRONMENT:-staging}}"
-
-  case "$ENVIRONMENT_NAME" in
-    staging|prod) ;;
-    *) die "Environment must be staging or prod, got: ${ENVIRONMENT_NAME}" ;;
-  esac
+  ENVIRONMENT_NAME="${ARG_ENVIRONMENT:-staging}"
 
   if [[ -n "$ARG_ENVIRONMENT_DIR" ]]; then
     ENVIRONMENT_DIR="$ARG_ENVIRONMENT_DIR"
   elif [[ -n "$ARG_ENVIRONMENT" ]]; then
     ENVIRONMENT_DIR="$ENVIRONMENT_NAME"
   else
-    ENVIRONMENT_DIR="${DEPLOY_ENVIRONMENT_DIR:-${ENVIRONMENT_NAME}}"
+    ENVIRONMENT_DIR="${ENVIRONMENT_NAME}"
   fi
 
   ENVIRONMENT_DIR="$(resolve_repo_path "$ENVIRONMENT_DIR")"
@@ -117,7 +126,7 @@ resolve_deploy_config() {
   elif [[ -n "$ARG_ENVIRONMENT" ]]; then
     TEMPLATE_FILE="${ENVIRONMENT_DIR}/template.yaml"
   else
-    TEMPLATE_FILE="${DEPLOY_TEMPLATE_FILE:-${ENVIRONMENT_DIR}/template.yaml}"
+    TEMPLATE_FILE="${ENVIRONMENT_DIR}/template.yaml"
   fi
 
   if [[ -n "$ARG_STACK_NAME" ]]; then
@@ -125,7 +134,7 @@ resolve_deploy_config() {
   elif [[ -n "$ARG_ENVIRONMENT" ]]; then
     STACK_NAME="sendu-plugin2-${ENVIRONMENT_NAME}"
   else
-    STACK_NAME="${DEPLOY_INFRA_STACK_NAME:-${DEPLOY_STACK_NAME:-sendu-plugin2-${ENVIRONMENT_NAME}}}"
+    STACK_NAME="sendu-plugin2-${ENVIRONMENT_NAME}"
   fi
 
   if [[ -n "$ARG_PARAMETERS_FILE" ]]; then
@@ -133,7 +142,7 @@ resolve_deploy_config() {
   elif [[ -n "$ARG_ENVIRONMENT" ]]; then
     PARAMETERS_FILE="${ENVIRONMENT_DIR}/parameters.json"
   else
-    PARAMETERS_FILE="${DEPLOY_PARAMETERS_FILE:-${ENVIRONMENT_DIR}/parameters.json}"
+    PARAMETERS_FILE="${ENVIRONMENT_DIR}/parameters.json"
   fi
 
   TEMPLATE_FILE="$(resolve_repo_path "$TEMPLATE_FILE")"
@@ -159,7 +168,7 @@ load_parameter_overrides() {
     if [[ -n "$parameter_override" ]]; then
       PARAMETER_OVERRIDES+=("$parameter_override")
     fi
-  done < <(jq -r '.[] | select(.ParameterKey and has("ParameterValue")) | "\(.ParameterKey)=\(.ParameterValue)"' "$PARAMETERS_FILE")
+  done < <(jq -r '.[] | "\(.ParameterKey)=\(.ParameterValue)"' "$PARAMETERS_FILE")
 }
 
 set_parameter_override() {

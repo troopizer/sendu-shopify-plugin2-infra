@@ -34,7 +34,7 @@ EOF
 }
 
 init_config_defaults
-load_env_file
+load_env_file "$@"
 
 while [[ $# -gt 0 ]]; do
   if parse_common_arg "$@"; then

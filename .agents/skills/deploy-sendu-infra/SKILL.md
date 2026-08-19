@@ -13,19 +13,17 @@ Do not use `scripts/deploy-stack.sh` or `scripts/release-all.sh`; both are depre
 
 Before deploying, confirm the target environment: `staging` or `prod`.
 
-This infra repo does not build or push images. Backend and frontend images must already exist in the selected environment's ECR repositories.
+This infra repo does not build or push images. Backend and frontend images must already exist in the shared ECR repositories.
 
-Before deploying, determine image tags.
+Image tags are optional.
 
-If the user has not provided image tags, ask them to choose one:
-
-1. Deploy latest backend and frontend images
+If the user has not provided image tags, deployment automatically resolves the most recently pushed tagged backend and frontend images independently:
 
 ```bash
-VERSION=latest
+make deploy prod
 ```
 
-2. Choose backend and frontend versions separately
+To pin backend and frontend versions separately:
 
 ```bash
 BACKEND_VERSION=<backend-tag> FRONTEND_VERSION=<frontend-tag>
@@ -42,8 +40,6 @@ If the user provides separate backend/frontend tags, preserve them exactly:
 ```bash
 BACKEND_VERSION=<backend-tag> FRONTEND_VERSION=<frontend-tag>
 ```
-
-Do not guess tags other than `latest`; ask first when the intended version is unclear.
 
 Deploy and monitor:
 

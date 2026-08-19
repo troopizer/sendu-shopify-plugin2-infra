@@ -403,35 +403,6 @@ Resources:
               - ssm:GetConnectionStatus
             Resource: "*"
 
-  BackendEcrRepository:
-    Type: AWS::ECR::Repository
-    Properties:
-      RepositoryName: !Sub ${ProjectName}-${EnvironmentName}-backend
-      ImageScanningConfiguration:
-        ScanOnPush: true
-      ImageTagMutability: MUTABLE
-
-  FrontendEcrRepository:
-    Type: AWS::ECR::Repository
-    Properties:
-      RepositoryName: !Sub ${ProjectName}-${EnvironmentName}-frontend
-      ImageScanningConfiguration:
-        ScanOnPush: true
-      ImageTagMutability: MUTABLE
-      RepositoryPolicyText:
-        Version: "2012-10-17"
-        Statement:
-          - Sid: AllowLambdaImagePull
-            Effect: Allow
-            Principal:
-              Service: lambda.amazonaws.com
-            Action:
-              - ecr:BatchGetImage
-              - ecr:GetDownloadUrlForLayer
-            Condition:
-              StringLike:
-                aws:sourceArn: !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${ProjectName}-${EnvironmentName}-front
-
   EcsCluster:
     Type: AWS::ECS::Cluster
     Properties:
@@ -491,7 +462,10 @@ Resources:
       TaskRoleArn: !GetAtt EcsTaskRole.Arn
       ContainerDefinitions:
         - Name: backend
-          Image: !Sub ${BackendEcrRepository.RepositoryUri}:${BackendImageTag}
+          Image: !Join
+            - ":"
+            - - !ImportValue sendu-plugin2-shared-ecr-BackendEcrRepositoryUri
+              - !Ref BackendImageTag
           PortMappings:
             - ContainerPort: !Ref BackendContainerPort
               Protocol: tcp
@@ -658,7 +632,10 @@ Resources:
           UPSTREAM_API_TOKEN: !Sub "{{resolve:secretsmanager:${AppSecretsSecretId}:SecretString:UPSTREAM_API_TOKEN}}"
           LOG_LEVEL: !Ref FrontendLogLevel
       Code:
-        ImageUri: !Sub ${FrontendEcrRepository.RepositoryUri}:${FrontendImageTag}
+        ImageUri: !Join
+          - ":"
+          - - !ImportValue sendu-plugin2-shared-ecr-FrontendEcrRepositoryUri
+            - !Ref FrontendImageTag
 
   FrontendHttpApi:
     Type: AWS::ApiGatewayV2::Api
@@ -729,11 +706,11 @@ Outputs:
 
   BackendEcrRepositoryUri:
     Description: ECR repository URI for backend image pushes
-    Value: !GetAtt BackendEcrRepository.RepositoryUri
+    Value: !ImportValue sendu-plugin2-shared-ecr-BackendEcrRepositoryUri
 
   FrontendEcrRepositoryUri:
     Description: ECR repository URI for frontend Lambda image pushes
-    Value: !GetAtt FrontendEcrRepository.RepositoryUri
+    Value: !ImportValue sendu-plugin2-shared-ecr-FrontendEcrRepositoryUri
 
   BackendAlbDnsName:
     Description: Public DNS name of backend ALB

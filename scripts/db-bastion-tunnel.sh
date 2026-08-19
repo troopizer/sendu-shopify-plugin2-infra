@@ -3,7 +3,17 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
-ENV_FILE="${ENV_FILE:-${ROOT_DIR}/.env}"
+ENVIRONMENT_NAME="staging"
+
+for ((index = 1; index <= $#; index++)); do
+  if [[ "${!index}" == "--environment" ]]; then
+    next_index=$((index + 1))
+    ENVIRONMENT_NAME="${!next_index:?Missing value for --environment}"
+    break
+  fi
+done
+
+ENV_FILE="${ENV_FILE:-${ROOT_DIR}/${ENVIRONMENT_NAME}/.env}"
 
 if [[ -f "$ENV_FILE" ]]; then
   set -a
@@ -12,7 +22,6 @@ if [[ -f "$ENV_FILE" ]]; then
   set +a
 fi
 
-ENVIRONMENT_NAME="${DEPLOY_ENVIRONMENT:-staging}"
 ARG_ENVIRONMENT_SET=false
 ARG_STACK_NAME=""
 INSTANCE_ID="${BASTION_INSTANCE_ID:-}"
@@ -41,7 +50,7 @@ Options:
   --help                 Show this help.
 
 Environment overrides are also supported:
-  DEPLOY_ENVIRONMENT, DEPLOY_INFRA_STACK_NAME, DEPLOY_STACK_NAME, BASTION_INSTANCE_ID, DB_HOST, LOCAL_PORT, AWS_PROFILE, AWS_REGION
+  BASTION_INSTANCE_ID, DB_HOST, LOCAL_PORT, AWS_PROFILE, AWS_REGION
 USAGE
 }
 
@@ -93,7 +102,7 @@ if [[ -n "$ARG_STACK_NAME" ]]; then
 elif [[ "$ARG_ENVIRONMENT_SET" == "true" ]]; then
   STACK_NAME="sendu-plugin2-${ENVIRONMENT_NAME}"
 else
-  STACK_NAME="${DEPLOY_INFRA_STACK_NAME:-${DEPLOY_STACK_NAME:-sendu-plugin2-${ENVIRONMENT_NAME}}}"
+  STACK_NAME="sendu-plugin2-${ENVIRONMENT_NAME}"
 fi
 
 aws_cli() {

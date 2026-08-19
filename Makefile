@@ -3,6 +3,7 @@ SHELL := /usr/bin/env bash
 
 ENV_FROM_GOALS := $(firstword $(filter staging prod,$(MAKECMDGOALS)))
 ENV ?= $(if $(ENV_FROM_GOALS),$(ENV_FROM_GOALS),staging)
+ENV_FILE ?= $(ENV)/.env
 VERSION ?= $(version)
 BACKEND_VERSION ?= $(VERSION)
 FRONTEND_VERSION ?= $(VERSION)
@@ -13,6 +14,8 @@ KEY ?=
 LOCAL_PORT ?=
 DRY_RUN ?=
 SKIP_HTTP ?=
+SOURCE_STACK ?= sendu-plugin2-prod
+SOURCE_REGION ?= us-east-2
 
 COMMON_ARGS = --environment $(ENV)
 COMMON_ARGS += $(if $(PROFILE),--profile $(PROFILE),)
@@ -35,7 +38,7 @@ TUNNEL_ARGS += $(if $(LOCAL_PORT),--local-port $(LOCAL_PORT),)
 VALIDATE_ARGS = $(if $(PROFILE),--profile $(PROFILE),)
 VALIDATE_ARGS += $(if $(REGION),--region $(REGION),)
 
-.PHONY: help check-env check-version staging prod deploy plan monitor bootstrap dry-run validate secrets-init secrets-ls secrets-get secrets-set db-tunnel
+.PHONY: help staging prod deploy plan monitor bootstrap dry-run validate shared-validate shared-bootstrap ecr-bootstrap ecr-verify ecr-migrate secrets-init secrets-ls secrets-get secrets-set db-tunnel
 
 help:
 	@printf '%s\n' \
@@ -47,6 +50,10 @@ help:
 		'  make monitor prod VERSION=1.0.62' \
 		'  make dry-run prod VERSION=1.0.62' \
 		'  make validate prod' \
+		'  make shared-validate' \
+		'  make shared-bootstrap' \
+		'  make ecr-migrate SOURCE_STACK=sendu-plugin2-prod BACKEND_VERSION=<tag> FRONTEND_VERSION=<tag>' \
+		'  make ecr-verify [BACKEND_VERSION=<tag>] [FRONTEND_VERSION=<tag>]' \
 		'' \
 		'Targets:' \
 		'  deploy        Deploy CloudFormation and monitor CloudFormation, ECS, Lambda, logs, and health' \
@@ -55,6 +62,10 @@ help:
 		'  bootstrap     First-time stack deploy with runtimes disabled for initial ECR creation' \
 		'  dry-run       Print deployment AWS commands without executing them' \
 		'  validate      Validate the selected environment CloudFormation template' \
+		'  shared-validate  Validate the shared CloudFormation template' \
+		'  shared-bootstrap  Deploy the shared ECR stack in us-east-2' \
+		'  ecr-migrate   Copy existing image tags into shared ECR by digest' \
+		'  ecr-verify    Verify shared ECR repositories and Lambda pull policy' \
 		'  secrets-init  Create the environment app secret' \
 		'  secrets-ls    List keys in the environment app secret' \
 		'  secrets-get   Get one secret key, requires KEY=<name>' \
@@ -65,50 +76,63 @@ help:
 		'  ENV=staging|prod, VERSION=<image-tag>, BACKEND_VERSION=<tag>, FRONTEND_VERSION=<tag>' \
 		'  PROFILE=<aws-profile>, REGION=<aws-region>, DRY_RUN=1, SKIP_HTTP=1, KEY=<secret-key>, LOCAL_PORT=<port>'
 
-check-env:
-	@case '$(ENV)' in \
-		staging|prod) ;; \
-		*) printf 'ENV must be staging or prod, got: %s\n' '$(ENV)' >&2; exit 2 ;; \
-	esac
+deploy:
+	ENV_FILE='$(ENV_FILE)' ./scripts/deploy.sh $(STACK_ARGS)
 
-check-version:
-	@test -n '$(BACKEND_VERSION)' || { printf 'VERSION or BACKEND_VERSION is required. Example: make deploy prod VERSION=1.0.62\n' >&2; exit 2; }
-	@test -n '$(FRONTEND_VERSION)' || { printf 'VERSION or FRONTEND_VERSION is required. Example: make deploy prod VERSION=1.0.62\n' >&2; exit 2; }
+plan:
+	ENV_FILE='$(ENV_FILE)' ./scripts/deploy.sh $(STACK_ARGS) --plan
 
-deploy: check-env check-version
-	./scripts/deploy.sh $(STACK_ARGS)
+monitor:
+	ENV_FILE='$(ENV_FILE)' ./scripts/monitor-deploy.sh $(STACK_ARGS)
 
-plan: check-env check-version
-	./scripts/deploy.sh $(STACK_ARGS) --plan
-
-monitor: check-env check-version
-	./scripts/monitor-deploy.sh $(STACK_ARGS)
-
-bootstrap: check-env
-	./scripts/bootstrap.sh $(COMMON_ARGS) $(DRY_RUN_ARG)
+bootstrap:
+	ENV_FILE='$(ENV_FILE)' ./scripts/bootstrap.sh $(COMMON_ARGS) $(DRY_RUN_ARG)
 
 dry-run: DRY_RUN := true
 dry-run: deploy
 
-validate: check-env
+validate:
 	aws cloudformation validate-template --template-body file://$(ENV)/template.yaml $(VALIDATE_ARGS)
 
-secrets-init: check-env
-	./scripts/secrets $(SECRETS_ARGS) init
+shared-validate:
+	aws cloudformation validate-template --template-body file://shared/template.yaml $(if $(PROFILE),--profile $(PROFILE),) $(if $(REGION),--region $(REGION),)
 
-secrets-ls: check-env
-	./scripts/secrets $(SECRETS_ARGS) ls
+ecr-verify:
+	./scripts/ecr-verify.sh \
+		$(if $(PROFILE),--profile $(PROFILE),) \
+		$(if $(REGION),--region $(REGION),) \
+		$(if $(BACKEND_VERSION),--backend-image-tag $(BACKEND_VERSION),) \
+		$(if $(FRONTEND_VERSION),--frontend-image-tag $(FRONTEND_VERSION),)
 
-secrets-get: check-env
+shared-bootstrap:
+	ENV_FILE='shared/.env' ./scripts/shared-bootstrap.sh
+
+ecr-bootstrap: shared-bootstrap
+
+ecr-migrate:
+	./scripts/ecr-migrate.sh \
+		$(if $(PROFILE),--profile $(PROFILE),) \
+		--source-stack '$(SOURCE_STACK)' \
+		--source-region '$(SOURCE_REGION)' \
+		$(if $(BACKEND_VERSION),--backend-image-tag $(BACKEND_VERSION),) \
+		$(if $(FRONTEND_VERSION),--frontend-image-tag $(FRONTEND_VERSION),)
+
+secrets-init:
+	ENV_FILE='$(ENV_FILE)' ./scripts/secrets $(SECRETS_ARGS) init
+
+secrets-ls:
+	ENV_FILE='$(ENV_FILE)' ./scripts/secrets $(SECRETS_ARGS) ls
+
+secrets-get:
 	@test -n '$(KEY)' || { printf 'KEY is required. Example: make secrets-get prod KEY=DB_USERNAME\n' >&2; exit 2; }
-	./scripts/secrets $(SECRETS_ARGS) get '$(KEY)'
+	ENV_FILE='$(ENV_FILE)' ./scripts/secrets $(SECRETS_ARGS) get '$(KEY)'
 
-secrets-set: check-env
+secrets-set:
 	@test -n '$(KEY)' || { printf 'KEY is required. Example: make secrets-set prod KEY=DB_USERNAME\n' >&2; exit 2; }
-	./scripts/secrets $(SECRETS_ARGS) set '$(KEY)'
+	ENV_FILE='$(ENV_FILE)' ./scripts/secrets $(SECRETS_ARGS) set '$(KEY)'
 
-db-tunnel: check-env
-	./scripts/db-bastion-tunnel.sh $(TUNNEL_ARGS)
+db-tunnel:
+	ENV_FILE='$(ENV_FILE)' ./scripts/db-bastion-tunnel.sh $(TUNNEL_ARGS)
 
 staging prod:
 	@:

@@ -1,0 +1,64 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Sendu shared infrastructure for staging and prod ECR repositories
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: sendu-plugin2
+
+Resources:
+  BackendEcrRepository:
+    Type: AWS::ECR::Repository
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      RepositoryName: !Sub ${ProjectName}-backend
+      ImageScanningConfiguration:
+        ScanOnPush: true
+      ImageTagMutability: MUTABLE
+
+  FrontendEcrRepository:
+    Type: AWS::ECR::Repository
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      RepositoryName: !Sub ${ProjectName}-frontend
+      ImageScanningConfiguration:
+        ScanOnPush: true
+      ImageTagMutability: MUTABLE
+      RepositoryPolicyText:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowEnvironmentLambdaImagePull
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action:
+              - ecr:BatchGetImage
+              - ecr:GetDownloadUrlForLayer
+            Condition:
+              StringLike:
+                aws:sourceArn:
+                  - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${ProjectName}-staging-front
+                  - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${ProjectName}-prod-front
+
+Outputs:
+  BackendEcrRepositoryUri:
+    Description: Shared ECR repository URI for backend image pushes
+    Value: !GetAtt BackendEcrRepository.RepositoryUri
+    Export:
+      Name: !Sub ${AWS::StackName}-BackendEcrRepositoryUri
+
+  FrontendEcrRepositoryUri:
+    Description: Shared ECR repository URI for frontend Lambda image pushes
+    Value: !GetAtt FrontendEcrRepository.RepositoryUri
+    Export:
+      Name: !Sub ${AWS::StackName}-FrontendEcrRepositoryUri
+
+  BackendEcrRepositoryArn:
+    Description: Shared ECR repository ARN for the backend image
+    Value: !GetAtt BackendEcrRepository.Arn
+
+  FrontendEcrRepositoryArn:
+    Description: Shared ECR repository ARN for the frontend image
+    Value: !GetAtt FrontendEcrRepository.Arn
