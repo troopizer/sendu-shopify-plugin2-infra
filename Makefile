@@ -1,3 +1,4 @@
+# shellcheck disable=SC1050,SC1072,SC1073
 SHELL := /usr/bin/env bash
 .DEFAULT_GOAL := help
 
@@ -12,6 +13,7 @@ REGION ?=
 API_BASE_URL ?=
 KEY ?=
 LOCAL_PORT ?=
+STACK_NAME ?= $(if $(filter staging,$(ENV)),sendu-shopify-plugin2-staging,sendu-plugin2-prod)
 DRY_RUN ?=
 SKIP_HTTP ?=
 SOURCE_STACK ?= sendu-plugin2-prod
@@ -34,6 +36,7 @@ SECRETS_ARGS += $(if $(PROFILE),--profile $(PROFILE),)
 
 TUNNEL_ARGS = $(COMMON_ARGS)
 TUNNEL_ARGS += $(if $(LOCAL_PORT),--local-port $(LOCAL_PORT),)
+TUNNEL_ARGS += $(if $(STACK_NAME),--stack-name $(STACK_NAME),)
 
 VALIDATE_ARGS = $(if $(PROFILE),--profile $(PROFILE),)
 VALIDATE_ARGS += $(if $(REGION),--region $(REGION),)
@@ -74,7 +77,7 @@ help:
 		'' \
 		'Variables:' \
 		'  ENV=staging|prod, VERSION=<image-tag>, BACKEND_VERSION=<tag>, FRONTEND_VERSION=<tag>' \
-		'  PROFILE=<aws-profile>, REGION=<aws-region>, DRY_RUN=1, SKIP_HTTP=1, KEY=<secret-key>, LOCAL_PORT=<port>'
+		'  PROFILE=<aws-profile>, REGION=<aws-region>, DRY_RUN=1, SKIP_HTTP=1, KEY=<secret-key>, LOCAL_PORT=<port>, STACK_NAME=<stack-name>'
 
 deploy:
 	ENV_FILE='$(ENV_FILE)' ./scripts/deploy.sh $(STACK_ARGS)
