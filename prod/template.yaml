@@ -494,12 +494,18 @@ Resources:
               Value: !Sub "{{resolve:secretsmanager:${AppSecretsSecretId}:SecretString:RAILS_MASTER_KEY}}"
             - Name: SECRET_KEY_BASE
               Value: !Sub "{{resolve:secretsmanager:${AppSecretsSecretId}:SecretString:SECRET_KEY_BASE}}"
+            - Name: SENDU_API_BASE_URL
+              Value: !Sub "{{resolve:secretsmanager:${AppSecretsSecretId}:SecretString:SENDU_API_BASE_URL}}"
             - Name: DATABASE_HOST
               Value: !GetAtt Database.Endpoint.Address
             - Name: DATABASE_NAME
               Value: !Ref DatabaseName
             - Name: DATABASE_PORT
               Value: !GetAtt Database.Endpoint.Port
+            - Name: ADMIN_API_TOKEN
+              Value: !Sub "{{resolve:secretsmanager:${AppSecretsSecretId}:SecretString:ADMIN_API_TOKEN}}"
+            - Name: UPSTREAM_API_TOKEN
+              Value: !Sub "{{resolve:secretsmanager:${AppSecretsSecretId}:SecretString:UPSTREAM_API_TOKEN}}"
           Secrets:
             - Name: DATABASE_USERNAME
               ValueFrom: !Sub "${DatabaseCredentialsSecret}:username::"
