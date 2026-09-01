@@ -75,6 +75,7 @@ These stable frontend shell resources are created and preserved even when `Enabl
 - ECS desired count: from the selected environment parameters; bootstrap overrides it to `0`
 - Backend image tag: `latest` unless overridden at deployment time
 - Frontend image tag: `latest` unless overridden at deployment time
-- RDS class: `db.t4g.small`
-- RDS backup retention: `7` days
+- Staging database: Aurora PostgreSQL Serverless v2, `db.serverless`, `0.5–1` ACU
+- Prod database: RDS PostgreSQL, `db.t4g.micro`
+- Database backup retention: `7` days
 - Frontend Lambda log level: staging `debug`, prod `info`

@@ -43,16 +43,9 @@ Parameters:
   DatabaseName:
     Type: String
     Default: senduplugin2
-  DatabaseInstanceClass:
-    Type: String
-    Default: db.t4g.small
-  DatabaseAllocatedStorage:
-    Type: Number
-    Default: 20
-    MinValue: 20
   DatabaseEngineVersion:
     Type: String
-    Default: "17"
+    Default: "17.10"
   DatabaseBackupRetentionDays:
     Type: Number
     Default: 7
@@ -489,11 +482,11 @@ Resources:
             - Name: SECRET_KEY_BASE
               Value: !Sub "{{resolve:secretsmanager:${AppSecretsSecretId}:SecretString:SECRET_KEY_BASE}}"
             - Name: DATABASE_HOST
-              Value: !GetAtt Database.Endpoint.Address
+              Value: !GetAtt DatabaseCluster.Endpoint.Address
             - Name: DATABASE_NAME
               Value: !Ref DatabaseName
             - Name: DATABASE_PORT
-              Value: !GetAtt Database.Endpoint.Port
+              Value: !GetAtt DatabaseCluster.Endpoint.Port
           Secrets:
             - Name: DATABASE_USERNAME
               ValueFrom: !Sub "${DatabaseCredentialsSecret}:username::"
@@ -585,28 +578,40 @@ Resources:
         ExcludePunctuation: true
         PasswordLength: 24
 
+  DatabaseCluster:
+    Type: AWS::RDS::DBCluster
+    DeletionPolicy: Snapshot
+    UpdateReplacePolicy: Snapshot
+    Properties:
+      DBClusterIdentifier: !Sub ${ProjectName}-${EnvironmentName}-aurora
+      Engine: aurora-postgresql
+      EngineVersion: !Ref DatabaseEngineVersion
+      DatabaseName: !Ref DatabaseName
+      Port: 5432
+      MasterUsername: !Sub "{{resolve:secretsmanager:${DatabaseCredentialsSecret}:SecretString:username}}"
+      MasterUserPassword: !Sub "{{resolve:secretsmanager:${DatabaseCredentialsSecret}:SecretString:password}}"
+      DBSubnetGroupName: !Ref DatabaseSubnetGroup
+      VpcSecurityGroupIds:
+        - !Ref DatabaseSecurityGroup
+      StorageEncrypted: true
+      BackupRetentionPeriod: !Ref DatabaseBackupRetentionDays
+      DeletionProtection: false
+      ServerlessV2ScalingConfiguration:
+        MinCapacity: 0.5
+        MaxCapacity: 1
+
   Database:
     Type: AWS::RDS::DBInstance
     DeletionPolicy: Snapshot
     UpdateReplacePolicy: Snapshot
     Properties:
-      DBInstanceIdentifier: !Sub ${ProjectName}-${EnvironmentName}-postgres
-      Engine: postgres
+      DBInstanceIdentifier: !Sub ${ProjectName}-${EnvironmentName}-aurora-instance
+      Engine: aurora-postgresql
       EngineVersion: !Ref DatabaseEngineVersion
-      DBName: !Ref DatabaseName
-      DBInstanceClass: !Ref DatabaseInstanceClass
-      AllocatedStorage: !Ref DatabaseAllocatedStorage
+      DBInstanceClass: db.serverless
+      DBClusterIdentifier: !Ref DatabaseCluster
       PubliclyAccessible: false
-      StorageEncrypted: true
-      MultiAZ: false
-      BackupRetentionPeriod: !Ref DatabaseBackupRetentionDays
       AutoMinorVersionUpgrade: true
-      MasterUsername: !Sub "{{resolve:secretsmanager:${DatabaseCredentialsSecret}:SecretString:username}}"
-      MasterUserPassword: !Sub "{{resolve:secretsmanager:${DatabaseCredentialsSecret}:SecretString:password}}"
-      VPCSecurityGroups:
-        - !Ref DatabaseSecurityGroup
-      DBSubnetGroupName: !Ref DatabaseSubnetGroup
-      DeletionProtection: false
 
   FrontendLambdaExecutionRole:
     Type: AWS::IAM::Role
@@ -732,12 +737,12 @@ Outputs:
     Value: !Sub http://${BackendLoadBalancer.DNSName}
 
   DatabaseEndpointAddress:
-    Description: PostgreSQL endpoint hostname
-    Value: !GetAtt Database.Endpoint.Address
+    Description: PostgreSQL cluster endpoint hostname
+    Value: !GetAtt DatabaseCluster.Endpoint.Address
 
   DatabaseEndpointPort:
-    Description: PostgreSQL endpoint port
-    Value: !GetAtt Database.Endpoint.Port
+    Description: PostgreSQL cluster endpoint port
+    Value: !GetAtt DatabaseCluster.Endpoint.Port
 
   DatabaseCredentialsSecretArn:
     Description: Secrets Manager ARN containing database credentials
