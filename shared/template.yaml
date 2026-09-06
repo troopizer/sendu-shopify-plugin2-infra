@@ -12,20 +12,30 @@ Resources:
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
     Properties:
-      RepositoryName: !Sub ${ProjectName}-backend
+      RepositoryName: sendu-plugin2-backend
       ImageScanningConfiguration:
         ScanOnPush: true
       ImageTagMutability: MUTABLE
+      Tags:
+        - Key: Project
+          Value: sendu-shopify-app
+        - Key: Environment
+          Value: shared
 
   FrontendEcrRepository:
     Type: AWS::ECR::Repository
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
     Properties:
-      RepositoryName: !Sub ${ProjectName}-frontend
+      RepositoryName: sendu-plugin2-frontend
       ImageScanningConfiguration:
         ScanOnPush: true
       ImageTagMutability: MUTABLE
+      Tags:
+        - Key: Project
+          Value: sendu-shopify-app
+        - Key: Environment
+          Value: shared
       RepositoryPolicyText:
         Version: "2012-10-17"
         Statement:
@@ -39,26 +49,40 @@ Resources:
             Condition:
               StringLike:
                 aws:sourceArn:
-                  - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${ProjectName}-staging-front
-                  - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${ProjectName}-prod-front
+                  - Fn::Sub: arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${ProjectName}-staging-front
+                  - Fn::Sub: arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${ProjectName}-prod-front
 
 Outputs:
   BackendEcrRepositoryUri:
     Description: Shared ECR repository URI for backend image pushes
-    Value: !GetAtt BackendEcrRepository.RepositoryUri
+    Value:
+      Fn::GetAtt:
+        - BackendEcrRepository
+        - RepositoryUri
     Export:
-      Name: !Sub ${AWS::StackName}-BackendEcrRepositoryUri
+      Name:
+        Fn::Sub: ${AWS::StackName}-BackendEcrRepositoryUri
 
   FrontendEcrRepositoryUri:
     Description: Shared ECR repository URI for frontend Lambda image pushes
-    Value: !GetAtt FrontendEcrRepository.RepositoryUri
+    Value:
+      Fn::GetAtt:
+        - FrontendEcrRepository
+        - RepositoryUri
     Export:
-      Name: !Sub ${AWS::StackName}-FrontendEcrRepositoryUri
+      Name:
+        Fn::Sub: ${AWS::StackName}-FrontendEcrRepositoryUri
 
   BackendEcrRepositoryArn:
     Description: Shared ECR repository ARN for the backend image
-    Value: !GetAtt BackendEcrRepository.Arn
+    Value:
+      Fn::GetAtt:
+        - BackendEcrRepository
+        - Arn
 
   FrontendEcrRepositoryArn:
     Description: Shared ECR repository ARN for the frontend image
-    Value: !GetAtt FrontendEcrRepository.Arn
+    Value:
+      Fn::GetAtt:
+        - FrontendEcrRepository
+        - Arn
