@@ -24,6 +24,10 @@ Scripts resolve the selected environment with `--environment <name>`. The Makefi
 
 Both environments run in the same AWS region configured in their environment files. The `shared/` stack owns the backend and frontend ECR repositories, and both environment stacks import their exported repository URIs.
 
+## Cost Allocation Tags
+
+Taggable resources use `Project=sendu-shopify-app` and `Environment=staging` or `Environment=prod`. Shared ECR repositories use `Environment=shared` because they serve both environments.
+
 Deploy the shared stack before either environment. Use `make ecr-verify` to verify repository configuration, Lambda pull permissions, and optional image tags.
 
 ## Deployment Lifecycle
