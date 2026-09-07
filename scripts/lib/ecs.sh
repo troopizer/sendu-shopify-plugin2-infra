@@ -73,7 +73,7 @@ print_recent_stopped_tasks() {
 
     if [[ -n "$stopped_at" && "$stopped_at" != "None" ]]; then
       stopped_epoch="$(date -d "$stopped_at" +%s 2>/dev/null || true)"
-      if [[ -n "$stopped_epoch" ]] && (( stopped_epoch < since_epoch )); then
+      if [[ -n "$stopped_epoch" ]] && ((stopped_epoch < since_epoch)); then
         [[ -n "$seen_file" ]] && printf '%s\n' "$task_arn" >>"$seen_file"
         continue
       fi
@@ -134,13 +134,29 @@ check_alb_target_health() {
     --query 'TargetHealthDescriptions[].{Target:Target.Id,Port:Target.Port,State:TargetHealth.State,Reason:TargetHealth.Reason,Description:TargetHealth.Description}' \
     --output table
 
-  local unhealthy
+  local healthy unhealthy draining
+  healthy="$(aws elbv2 describe-target-health \
+    --target-group-arn "$tg_arn" \
+    --profile "$AWS_PROFILE" \
+    --region "$AWS_REGION" \
+    --query "length(TargetHealthDescriptions[?TargetHealth.State=='healthy'])" \
+    --output text)"
   unhealthy="$(aws elbv2 describe-target-health \
     --target-group-arn "$tg_arn" \
     --profile "$AWS_PROFILE" \
     --region "$AWS_REGION" \
-    --query "length(TargetHealthDescriptions[?TargetHealth.State!='healthy'])" \
+    --query "length(TargetHealthDescriptions[?TargetHealth.State!='healthy' && TargetHealth.State!='draining'])" \
+    --output text)"
+  draining="$(aws elbv2 describe-target-health \
+    --target-group-arn "$tg_arn" \
+    --profile "$AWS_PROFILE" \
+    --region "$AWS_REGION" \
+    --query "length(TargetHealthDescriptions[?TargetHealth.State=='draining'])" \
     --output text)"
 
-  [[ "$unhealthy" == "0" ]] || die "One or more ALB targets are not healthy"
+  [[ "$healthy" != "0" ]] || die "No healthy ALB targets are serving traffic"
+  [[ "$unhealthy" == "0" ]] || die "One or more ALB targets are unhealthy"
+  if [[ "$draining" != "0" ]]; then
+    warn "${draining} ALB target(s) are still draining; healthy target(s) are serving traffic"
+  fi
 }

@@ -106,6 +106,10 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub ${ProjectName}-${EnvironmentName}-vpc
+        - Key: Project
+          Value: sendu-shopify-app
+        - Key: Environment
+          Value: !Ref EnvironmentName
 
   InternetGateway:
     Type: AWS::EC2::InternetGateway
@@ -113,6 +117,10 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub ${ProjectName}-${EnvironmentName}-igw
+        - Key: Project
+          Value: sendu-shopify-app
+        - Key: Environment
+          Value: !Ref EnvironmentName
 
   VpcGatewayAttachment:
     Type: AWS::EC2::VPCGatewayAttachment
@@ -130,6 +138,10 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub ${ProjectName}-${EnvironmentName}-public-1
+        - Key: Project
+          Value: sendu-shopify-app
+        - Key: Environment
+          Value: !Ref EnvironmentName
 
   PublicSubnet2:
     Type: AWS::EC2::Subnet
@@ -141,6 +153,10 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub ${ProjectName}-${EnvironmentName}-public-2
+        - Key: Project
+          Value: sendu-shopify-app
+        - Key: Environment
+          Value: !Ref EnvironmentName
 
   PrivateAppSubnet1:
     Type: AWS::EC2::Subnet
@@ -152,6 +168,10 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub ${ProjectName}-${EnvironmentName}-private-app-1
+        - Key: Project
+          Value: sendu-shopify-app
+        - Key: Environment
+          Value: !Ref EnvironmentName
 
   PrivateAppSubnet2:
     Type: AWS::EC2::Subnet
@@ -163,6 +183,10 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub ${ProjectName}-${EnvironmentName}-private-app-2
+        - Key: Project
+          Value: sendu-shopify-app
+        - Key: Environment
+          Value: !Ref EnvironmentName
 
   PrivateDbSubnet1:
     Type: AWS::EC2::Subnet
@@ -174,6 +198,10 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub ${ProjectName}-${EnvironmentName}-private-db-1
+        - Key: Project
+          Value: sendu-shopify-app
+        - Key: Environment
+          Value: !Ref EnvironmentName
 
   PrivateDbSubnet2:
     Type: AWS::EC2::Subnet
@@ -185,6 +213,10 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub ${ProjectName}-${EnvironmentName}-private-db-2
+        - Key: Project
+          Value: sendu-shopify-app
+        - Key: Environment
+          Value: !Ref EnvironmentName
 
   PublicRouteTable:
     Type: AWS::EC2::RouteTable
@@ -193,6 +225,10 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub ${ProjectName}-${EnvironmentName}-public-rt
+        - Key: Project
+          Value: sendu-shopify-app
+        - Key: Environment
+          Value: !Ref EnvironmentName
 
   PublicDefaultRoute:
     Type: AWS::EC2::Route
@@ -221,6 +257,10 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub ${ProjectName}-${EnvironmentName}-private-app-rt
+        - Key: Project
+          Value: sendu-shopify-app
+        - Key: Environment
+          Value: !Ref EnvironmentName
 
   PrivateAppSubnet1RouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
@@ -241,6 +281,10 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub ${ProjectName}-${EnvironmentName}-private-db-rt
+        - Key: Project
+          Value: sendu-shopify-app
+        - Key: Environment
+          Value: !Ref EnvironmentName
 
   PrivateDbSubnet1RouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
@@ -270,6 +314,10 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub ${ProjectName}-${EnvironmentName}-alb-sg
+        - Key: Project
+          Value: sendu-shopify-app
+        - Key: Environment
+          Value: !Ref EnvironmentName
 
   BackendServiceSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -287,6 +335,10 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub ${ProjectName}-${EnvironmentName}-backend-sg
+        - Key: Project
+          Value: sendu-shopify-app
+        - Key: Environment
+          Value: !Ref EnvironmentName
 
   DatabaseSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -308,6 +360,10 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub ${ProjectName}-${EnvironmentName}-db-sg
+        - Key: Project
+          Value: sendu-shopify-app
+        - Key: Environment
+          Value: !Ref EnvironmentName
 
   BastionSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -320,11 +376,20 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub ${ProjectName}-${EnvironmentName}-bastion-sg
+        - Key: Project
+          Value: sendu-shopify-app
+        - Key: Environment
+          Value: !Ref EnvironmentName
 
   BastionInstanceRole:
     Type: AWS::IAM::Role
     Properties:
       RoleName: !Sub ${ProjectName}-${EnvironmentName}-bastion-role
+      Tags:
+        - Key: Project
+          Value: sendu-shopify-app
+        - Key: Environment
+          Value: !Ref EnvironmentName
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -360,11 +425,16 @@ Resources:
       MetadataOptions:
         HttpTokens: required
         HttpEndpoint: enabled
+      PropagateTagsToVolumeOnCreation: true
       Tags:
         - Key: Name
           Value: !Sub ${ProjectName}-${EnvironmentName}-bastion
         - Key: Purpose
           Value: database-access
+        - Key: Project
+          Value: sendu-shopify-app
+        - Key: Environment
+          Value: !Ref EnvironmentName
 
   BastionAccessPolicy:
     Type: AWS::IAM::ManagedPolicy
@@ -400,10 +470,20 @@ Resources:
     Type: AWS::ECS::Cluster
     Properties:
       ClusterName: !Sub ${ProjectName}-${EnvironmentName}-ecs
+      Tags:
+        - Key: Project
+          Value: sendu-shopify-app
+        - Key: Environment
+          Value: !Ref EnvironmentName
 
   EcsTaskExecutionRole:
     Type: AWS::IAM::Role
     Properties:
+      Tags:
+        - Key: Project
+          Value: sendu-shopify-app
+        - Key: Environment
+          Value: !Ref EnvironmentName
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -426,6 +506,11 @@ Resources:
   EcsTaskRole:
     Type: AWS::IAM::Role
     Properties:
+      Tags:
+        - Key: Project
+          Value: sendu-shopify-app
+        - Key: Environment
+          Value: !Ref EnvironmentName
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -441,11 +526,21 @@ Resources:
     Properties:
       LogGroupName: !Sub /ecs/${ProjectName}/${EnvironmentName}/backend
       RetentionInDays: 14
+      Tags:
+        - Key: Project
+          Value: sendu-shopify-app
+        - Key: Environment
+          Value: !Ref EnvironmentName
 
   BackendTaskDefinition:
     Type: AWS::ECS::TaskDefinition
     Properties:
       Family: !Sub ${ProjectName}-${EnvironmentName}-backend
+      Tags:
+        - Key: Project
+          Value: sendu-shopify-app
+        - Key: Environment
+          Value: !Ref EnvironmentName
       RequiresCompatibilities:
         - FARGATE
       Cpu: !Ref BackendCpu
@@ -511,6 +606,11 @@ Resources:
       Subnets:
         - !Ref PublicSubnet1
         - !Ref PublicSubnet2
+      Tags:
+        - Key: Project
+          Value: sendu-shopify-app
+        - Key: Environment
+          Value: !Ref EnvironmentName
 
   BackendTargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
@@ -524,6 +624,11 @@ Resources:
       HealthCheckPath: !Ref BackendHealthCheckPath
       Matcher:
         HttpCode: 200-399
+      Tags:
+        - Key: Project
+          Value: sendu-shopify-app
+        - Key: Environment
+          Value: !Ref EnvironmentName
 
   BackendListener:
     Type: AWS::ElasticLoadBalancingV2::Listener
@@ -557,6 +662,11 @@ Resources:
         - ContainerName: backend
           ContainerPort: !Ref BackendContainerPort
           TargetGroupArn: !Ref BackendTargetGroup
+      Tags:
+        - Key: Project
+          Value: sendu-shopify-app
+        - Key: Environment
+          Value: !Ref EnvironmentName
 
   DatabaseSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
@@ -566,12 +676,22 @@ Resources:
         - !Ref PrivateDbSubnet1
         - !Ref PrivateDbSubnet2
       DBSubnetGroupName: !Sub ${ProjectName}-${EnvironmentName}-db-subnets
+      Tags:
+        - Key: Project
+          Value: sendu-shopify-app
+        - Key: Environment
+          Value: !Ref EnvironmentName
 
   DatabaseCredentialsSecret:
     Type: AWS::SecretsManager::Secret
     Properties:
       Name: !Sub ${ProjectName}/${EnvironmentName}/rds/master-credentials
       Description: !Sub Master credentials for ${EnvironmentName} PostgreSQL
+      Tags:
+        - Key: Project
+          Value: sendu-shopify-app
+        - Key: Environment
+          Value: !Ref EnvironmentName
       GenerateSecretString:
         SecretStringTemplate: '{"username":"sendu_admin","port":"5432"}'
         GenerateStringKey: password
@@ -599,6 +719,11 @@ Resources:
       ServerlessV2ScalingConfiguration:
         MinCapacity: 0.5
         MaxCapacity: 1
+      Tags:
+        - Key: Project
+          Value: sendu-shopify-app
+        - Key: Environment
+          Value: !Ref EnvironmentName
 
   Database:
     Type: AWS::RDS::DBInstance
@@ -612,10 +737,20 @@ Resources:
       DBClusterIdentifier: !Ref DatabaseCluster
       PubliclyAccessible: false
       AutoMinorVersionUpgrade: true
+      Tags:
+        - Key: Project
+          Value: sendu-shopify-app
+        - Key: Environment
+          Value: !Ref EnvironmentName
 
   FrontendLambdaExecutionRole:
     Type: AWS::IAM::Role
     Properties:
+      Tags:
+        - Key: Project
+          Value: sendu-shopify-app
+        - Key: Environment
+          Value: !Ref EnvironmentName
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -631,6 +766,11 @@ Resources:
     Properties:
       LogGroupName: !Sub /aws/lambda/${ProjectName}-${EnvironmentName}-front
       RetentionInDays: 14
+      Tags:
+        - Key: Project
+          Value: sendu-shopify-app
+        - Key: Environment
+          Value: !Ref EnvironmentName
 
   FrontendLambdaFunction:
     Type: AWS::Lambda::Function
@@ -641,6 +781,11 @@ Resources:
       Timeout: !Ref LambdaTimeoutSeconds
       MemorySize: !Ref LambdaMemorySize
       Role: !GetAtt FrontendLambdaExecutionRole.Arn
+      Tags:
+        - Key: Project
+          Value: sendu-shopify-app
+        - Key: Environment
+          Value: !Ref EnvironmentName
       Environment:
         Variables:
           VERSION: "v3"
@@ -672,6 +817,9 @@ Resources:
           - Content-Type
           - Authorization
         AllowCredentials: true
+      Tags:
+        Project: sendu-shopify-app
+        Environment: !Ref EnvironmentName
 
   FrontendHttpApiIntegration:
     Type: AWS::ApiGatewayV2::Integration
@@ -705,6 +853,9 @@ Resources:
       ApiId: !Ref FrontendHttpApi
       StageName: $default
       AutoDeploy: true
+      Tags:
+        Project: sendu-shopify-app
+        Environment: !Ref EnvironmentName
 
   FrontendLambdaInvokePermission:
     Type: AWS::Lambda::Permission
