@@ -1,5 +1,33 @@
 #!/usr/bin/env bash
 
+# Some commands used by the deployment (and an interrupted interactive command)
+# can leave the controlling terminal with echo disabled or with display styles
+# enabled. Save the terminal settings before doing any work and restore them
+# when the script exits so the caller's shell is never left in that state.
+TERMINAL_SETTINGS=""
+if [[ -t 1 && -r /dev/tty ]]; then
+  TERMINAL_SETTINGS="$(stty -g </dev/tty 2>/dev/null || true)"
+fi
+
+restore_terminal() {
+  local exit_code="${1:-$?}"
+
+  if [[ -n "${TERMINAL_SETTINGS}" ]]; then
+    stty "${TERMINAL_SETTINGS}" </dev/tty >/dev/null 2>&1 || true
+  fi
+
+  if [[ -n "${COLOR_RESET:-}" && -t 1 && -w /dev/tty ]]; then
+    # Reset SGR attributes and make sure an interrupted command did not leave
+    # the cursor hidden. Do this directly on the terminal, not on redirected
+    # command output.
+    printf '\033[0m\033[?25h' >/dev/tty 2>/dev/null || true
+  fi
+
+  return "${exit_code}"
+}
+
+trap restore_terminal EXIT
+
 if [[ -z "${NO_COLOR:-}" && -z "${PLAIN_OUTPUT:-}" && -t 1 ]]; then
   COLOR_BLUE=$'\033[0;34m'
   COLOR_GREEN=$'\033[0;32m'
@@ -78,7 +106,7 @@ print_kv_table() {
     key="$1"
     value="$2"
     shift 2
-    if (( ${#value} > 59 )); then
+    if ((${#value} > 59)); then
       display_value="${value:0:56}..."
     else
       display_value="$value"

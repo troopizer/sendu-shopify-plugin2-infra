@@ -139,29 +139,35 @@ while [[ $# -gt 0 ]]; do
   fi
 
   case "$1" in
-    --plan)
-      PLAN_ONLY=true
-      shift
-      ;;
-    --dry-run)
-      DRY_RUN=true
-      shift
-      ;;
-    --skip-http)
-      SKIP_HTTP=true
-      shift
-      ;;
-    -h|--help)
-      usage
-      exit 0
-      ;;
-    *)
-      die "Unknown argument: $1"
-      ;;
+  --plan)
+    PLAN_ONLY=true
+    shift
+    ;;
+  --dry-run)
+    DRY_RUN=true
+    shift
+    ;;
+  --skip-http)
+    SKIP_HTTP=true
+    shift
+    ;;
+  -h | --help)
+    usage
+    exit 0
+    ;;
+  *)
+    die "Unknown argument: $1"
+    ;;
   esac
 done
 
-trap cleanup_watchers EXIT
+cleanup_on_exit() {
+  local exit_code=$?
+  cleanup_watchers
+  restore_terminal "${exit_code}"
+}
+
+trap cleanup_on_exit EXIT
 
 require_cmd aws
 require_cmd jq
@@ -266,7 +272,7 @@ phase "Run post-deployment health checks"
 run_post_deploy_checks
 phase_complete "Post-deployment health checks passed"
 
-elapsed=$(( $(date +%s) - DEPLOY_STARTED_AT ))
+elapsed=$(($(date +%s) - DEPLOY_STARTED_AT))
 printf '\n%s%s Deployment successful%s\n' "$COLOR_GREEN" "$ICON_OK" "$COLOR_RESET"
 print_kv_table \
   "Environment" "$ENVIRONMENT_NAME" \
